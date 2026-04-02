@@ -99,12 +99,26 @@ Public Sub RunCutPRO(ByVal sheetW As Double, ByVal sheetH As Double, ByVal gap A
 
     Set lay = doc.ActivePage.ActiveLayer
 
+    Dim sheetOffX As Double
+    Dim sr As Shape
+
     mPlaced = 0
     mSkipped = 0
     mSheets = 0
     mUsedArea = 0
 
     Do While remaining > 0
+
+        sheetOffX = mSheets * (sheetW + 40)
+
+        On Error Resume Next
+        Set sr = lay.CreateRectangle(sheetOffX, sheetH, sheetOffX + sheetW, 0)
+        If Not sr Is Nothing Then
+            sr.Outline.Width = 0.5
+            sr.Outline.Color.RGBAssign 0, 0, 180
+            sr.Fill.UniformColor.RGBAssign 248, 248, 255
+        End If
+        On Error GoTo 0
 
         curX = gap
         curY = sheetH - gap
@@ -139,7 +153,7 @@ Public Sub RunCutPRO(ByVal sheetW As Double, ByVal sheetH As Double, ByVal gap A
 
             If curY - h < 0 Then GoTo SkipThis
 
-            DrawRect lay, curX, curY, w, h
+            DrawRect lay, sheetOffX + curX, curY, w, h
 
             curX = curX + w + gap
             If h > rowH Then rowH = h

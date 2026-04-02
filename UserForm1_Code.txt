@@ -45,10 +45,10 @@ Private Sub UserForm_Initialize()
 
     ML "lblSh", "Лист (мм)", p, y, 70, 12, LBL
     y = y + 12
-    ML "lblShW", "Ш", p, y + 3, 10, 12, LBL
-    MT "txtSheetW", "2800", p + 12, y, 56, 18, INP, FG
-    ML "lblShH", "В", p + 74, y + 3, 10, 12, LBL
-    MT "txtSheetH", "2070", p + 86, y, 56, 18, INP, FG
+    ML "lblShH", "В", p, y + 3, 10, 12, LBL
+    MT "txtSheetH", "2800", p + 12, y, 56, 18, INP, FG
+    ML "lblShW", "Ш", p + 74, y + 3, 10, 12, LBL
+    MT "txtSheetW", "2070", p + 86, y, 56, 18, INP, FG
     ML "lblGap", "Отступ", p + 150, y + 3, 38, 12, LBL
     MT "txtGap", "25", p + 190, y, 28, 18, INP, FG
     y = y + 22
@@ -115,10 +115,7 @@ Private Sub UserForm_Initialize()
     cb.AddItem "Без орн.": cb.AddItem "Углы": cb.AddItem "Классик": cb.ListIndex = 0
     y = y + 22
 
-    Dim chk As MSForms.CheckBox
-    Set chk = Me.Controls.Add("Forms.CheckBox.1", "chkNoHandle", True)
-    With chk: .Left = p: .Top = y: .Width = 72: .Height = 14: .ForeColor = CK: .Caption = "Без ручек": .BackStyle = 0: .Value = True: End With
-    ML "lblArea", "S=0.00 м²  Исп. 0%", p + 80, y, fw - 80, 14, RGB(180, 210, 255), 0, False, 3
+    ML "lblArea", "S=0.00 м²  Исп. 0%", p, y, fw, 14, RGB(180, 210, 255), 0, False, 3
     y = y + 18
 
     ML "lblStat", "", p, y, fw, 14, RGB(200, 180, 120), 0, False, 1
