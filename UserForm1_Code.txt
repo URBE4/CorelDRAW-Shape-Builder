@@ -1,0 +1,324 @@
+Option Explicit
+
+Private WithEvents btnCreate As MSForms.CommandButton
+Private WithEvents btnClose As MSForms.CommandButton
+Private WithEvents btnCreateClose As MSForms.CommandButton
+Private WithEvents btnAdd As MSForms.CommandButton
+Private WithEvents btnDel As MSForms.CommandButton
+Private WithEvents btnClr As MSForms.CommandButton
+Private WithEvents cboFType As MSForms.ComboBox
+
+Private mFH() As Double
+Private mFW() As Double
+Private mFQ() As Long
+Private mFC As Long
+
+Private Sub UserForm_Initialize()
+    On Error Resume Next
+    Dim sl As Long: sl = 0
+    Do While Me.Controls.Count > 0 And sl < 200: Me.Controls.Remove 0: sl = sl + 1: Loop
+    On Error GoTo 0
+
+    Me.Caption = "Shape Builder"
+    Me.BackColor = RGB(25, 25, 42)
+    Me.Width = 340
+    Me.Height = 624
+
+    Dim INP As Long, FG As Long, LBL As Long, DK As Long, CK As Long, AC As Long
+    INP = RGB(38, 40, 56): FG = RGB(220, 225, 235)
+    LBL = RGB(160, 165, 185): DK = RGB(15, 15, 28)
+    CK = RGB(185, 190, 210): AC = RGB(40, 110, 220)
+
+    Dim p As Long, fw As Long, hw As Long, rx As Long, y As Long
+    p = 8: fw = 310: hw = 150: rx = 164: y = 4
+
+    ML "lblPreview", "", p, y, fw, 50, FG, DK, True, 2
+    y = y + 54
+
+    ML "lblType", "Тип формы", p, y, 80, 12, LBL
+    y = y + 12
+    Set cboFType = Me.Controls.Add("Forms.ComboBox.1", "cboTab", True)
+    With cboFType: .Left = p: .Top = y: .Width = fw: .Height = 20: .BackColor = INP: .ForeColor = FG: .Style = 2: End With
+    cboFType.AddItem "Классика 1": cboFType.AddItem "Классика 2": cboFType.AddItem "Прямой"
+    cboFType.ListIndex = 0
+    y = y + 24
+
+    ML "lblSh", "Лист (мм)", p, y, 70, 12, LBL
+    y = y + 12
+    ML "lblShW", "Ш", p, y + 3, 10, 12, LBL
+    MT "txtSheetW", "2800", p + 12, y, 56, 18, INP, FG
+    ML "lblShH", "В", p + 74, y + 3, 10, 12, LBL
+    MT "txtSheetH", "2070", p + 86, y, 56, 18, INP, FG
+    ML "lblGap", "Отступ", p + 150, y + 3, 38, 12, LBL
+    MT "txtGap", "25", p + 190, y, 28, 18, INP, FG
+    y = y + 22
+
+    ML "lblFac", "Фасады: H x W x Кол-во", p, y, 200, 12, LBL
+    y = y + 13
+
+    ML "lblFH", "H", p, y + 3, 10, 12, LBL
+    MT "txtFH", "720", p + 12, y, 48, 18, INP, FG
+    ML "lblFW", "W", p + 64, y + 3, 12, 12, LBL
+    MT "txtFW", "600", p + 78, y, 48, 18, INP, FG
+    ML "lblFQ", "x", p + 132, y + 3, 10, 12, LBL
+    MT "txtFQ", "1", p + 144, y, 26, 18, INP, FG
+
+    Set btnAdd = Me.Controls.Add("Forms.CommandButton.1", "bAdd", True)
+    With btnAdd: .Left = p + 176: .Top = y: .Width = 28: .Height = 18: .BackColor = RGB(50, 140, 50): .ForeColor = RGB(255, 255, 255): .Caption = "+": End With
+    Set btnDel = Me.Controls.Add("Forms.CommandButton.1", "bDel", True)
+    With btnDel: .Left = p + 208: .Top = y: .Width = 28: .Height = 18: .BackColor = RGB(160, 50, 50): .ForeColor = RGB(255, 255, 255): .Caption = "-": End With
+    Set btnClr = Me.Controls.Add("Forms.CommandButton.1", "bClr", True)
+    With btnClr: .Left = p + 240: .Top = y: .Width = 28: .Height = 18: .BackColor = RGB(100, 100, 50): .ForeColor = RGB(255, 255, 255): .Caption = "C": End With
+    y = y + 22
+
+    On Error Resume Next
+    Dim lb As MSForms.ListBox
+    Set lb = Me.Controls.Add("Forms.ListBox.1", "lstFacades", True)
+    If Not lb Is Nothing Then
+        lb.Left = p: lb.Top = y: lb.Width = fw: lb.Height = 68
+        lb.BackColor = INP: lb.ForeColor = FG
+        lb.SpecialEffect = 0: lb.BorderStyle = 1
+        lb.BorderColor = RGB(60, 65, 90)
+    End If
+    On Error GoTo 0
+    y = y + 72
+
+    ML "lblParams", "Параметры фасада", p, y, 140, 12, LBL
+    y = y + 13
+    ML "lblIns", "Отст. б/в", p, y, 56, 12, LBL
+    MT "txtInsetX", "70", p + 58, y - 1, 36, 17, INP, FG
+    MT "txtInsetY", "70", p + 98, y - 1, 36, 17, INP, FG
+    ML "lblArcs", "Дуги в/б", rx, y, 50, 12, LBL
+    MT "txtArcTop", "30", rx + 52, y - 1, 36, 17, INP, FG
+    MT "txtArcSide", "30", rx + 92, y - 1, 36, 17, INP, FG
+    y = y + 20
+
+    ML "lblOL", "Вн.", p, y + 1, 18, 12, LBL
+    MT "txtOuterQty", "0", p + 20, y, 20, 17, INP, FG
+    ML "lblOS", "см", p + 44, y + 1, 14, 12, LBL
+    MT "txtOuter", "23", p + 60, y, 30, 17, INP, FG
+    ML "lblIL", "Вт.", rx, y + 1, 18, 12, LBL
+    MT "txtInnerQty", "1", rx + 20, y, 20, 17, INP, FG
+    ML "lblIS", "см", rx + 44, y + 1, 14, 12, LBL
+    MT "txtInner", "20", rx + 60, y, 30, 17, INP, FG
+    y = y + 20
+
+    ML "lblBL", "Обводка", p, y, 50, 12, LBL
+    ML "lblOrnL", "Орнамент", rx, y, 60, 12, LBL
+    y = y + 12
+    Dim cb As MSForms.ComboBox
+    Set cb = Me.Controls.Add("Forms.ComboBox.1", "cboBorder", True)
+    With cb: .Left = p: .Top = y: .Width = hw: .Height = 18: .BackColor = INP: .ForeColor = FG: .Style = 2: End With
+    cb.AddItem "Без обв.": cb.AddItem "Тонкая": cb.AddItem "Средняя": cb.ListIndex = 0
+    Set cb = Me.Controls.Add("Forms.ComboBox.1", "cboOrn", True)
+    With cb: .Left = rx: .Top = y: .Width = hw: .Height = 18: .BackColor = INP: .ForeColor = FG: .Style = 2: End With
+    cb.AddItem "Без орн.": cb.AddItem "Углы": cb.AddItem "Классик": cb.ListIndex = 0
+    y = y + 22
+
+    Dim chk As MSForms.CheckBox
+    Set chk = Me.Controls.Add("Forms.CheckBox.1", "chkNoHandle", True)
+    With chk: .Left = p: .Top = y: .Width = 72: .Height = 14: .ForeColor = CK: .Caption = "Без ручек": .BackStyle = 0: .Value = True: End With
+    ML "lblArea", "S=0.00 м²  Исп. 0%", p + 80, y, fw - 80, 14, RGB(180, 210, 255), 0, False, 3
+    y = y + 18
+
+    ML "lblStat", "", p, y, fw, 14, RGB(200, 180, 120), 0, False, 1
+    y = y + 18
+
+    Set btnCreate = Me.Controls.Add("Forms.CommandButton.1", "bCreate", True)
+    With btnCreate: .Left = p: .Top = y: .Width = fw: .Height = 30: .BackColor = AC: .ForeColor = RGB(255, 255, 255): .Caption = "СОЗДАТЬ": .Font.Size = 11: .Font.Bold = True: End With
+    y = y + 34
+
+    Set btnClose = Me.Controls.Add("Forms.CommandButton.1", "bClose", True)
+    With btnClose: .Left = p: .Top = y: .Width = hw: .Height = 22: .BackColor = RGB(50, 52, 68): .ForeColor = RGB(200, 205, 215): .Caption = "ЗАКРЫТЬ": End With
+    Set btnCreateClose = Me.Controls.Add("Forms.CommandButton.1", "bCrCl", True)
+    With btnCreateClose: .Left = rx: .Top = y: .Width = hw: .Height = 22: .BackColor = RGB(50, 52, 68): .ForeColor = RGB(200, 205, 215): .Caption = "СОЗДАТЬ И ЗАКРЫТЬ": End With
+    y = y + 26
+    ML "lblStatus", "Готово", p, y, fw, 14, RGB(110, 190, 140)
+
+    On Error Resume Next
+    Me.Controls("txtOuterQty").TextAlign = 2
+    Me.Controls("txtInnerQty").TextAlign = 2
+    Me.Controls("txtFQ").TextAlign = 2
+    On Error GoTo 0
+
+    mFC = 0
+    ReDim mFH(0 To 0): ReDim mFW(0 To 0): ReDim mFQ(0 To 0)
+    UpdatePreview
+End Sub
+
+Private Sub ML(n As String, c As String, l As Long, t As Long, w As Long, h As Long, fg As Long, Optional bg As Long = 0, Optional oq As Boolean = False, Optional al As Long = 1)
+    On Error Resume Next
+    Dim x As MSForms.Label: Set x = Me.Controls.Add("Forms.Label.1", n, True)
+    x.Left = l: x.Top = t: x.Width = w: x.Height = h: x.ForeColor = fg: x.Caption = c: x.TextAlign = al
+    If oq Then x.BackStyle = 1: x.BackColor = bg: x.WordWrap = True Else x.BackStyle = 0
+End Sub
+
+Private Sub MT(n As String, d As String, l As Long, t As Long, w As Long, h As Long, bg As Long, fg As Long)
+    On Error Resume Next
+    Dim x As MSForms.TextBox: Set x = Me.Controls.Add("Forms.TextBox.1", n, True)
+    x.Left = l: x.Top = t: x.Width = w: x.Height = h: x.BackColor = bg: x.ForeColor = fg: x.Text = d
+    x.SpecialEffect = 0: x.BorderStyle = 0
+End Sub
+
+Private Function CT(n As String) As String
+    On Error Resume Next: CT = Trim$(Me.Controls(n).Text)
+End Function
+
+Private Function TN(ByVal s As String, ByVal d As Double) As Double
+    Dim t As String: t = Replace(Trim$(s), ",", ".")
+    If IsNumeric(t) Then TN = CDbl(t) Else TN = d
+End Function
+
+Private Function CV(n As String) As String
+    On Error Resume Next
+    Dim c As MSForms.ComboBox: Set c = Me.Controls(n)
+    CV = Trim$(c.Text)
+    If Len(CV) = 0 And c.ListIndex >= 0 Then CV = Trim$(c.List(c.ListIndex))
+End Function
+
+Private Function FM() As Long
+    On Error Resume Next
+    Select Case cboFType.ListIndex
+        Case 0: FM = 1
+        Case 1: FM = 2
+        Case 2: FM = 0
+        Case Else: FM = 1
+    End Select
+End Function
+
+Private Function FN(fv As Long) As String
+    Select Case fv
+        Case 0: FN = "Прямой"
+        Case 1: FN = "Классика 1"
+        Case 2: FN = "Классика 2"
+        Case Else: FN = "?"
+    End Select
+End Function
+
+Private Function FT(fv As Long) As String
+    If fv = 0 Then FT = "Прямой" Else FT = "Классика"
+End Function
+
+Private Sub SetStatus(msg As String, Optional isErr As Boolean = False)
+    On Error Resume Next
+    Me.Controls("lblStatus").Caption = msg
+    If isErr Then Me.Controls("lblStatus").ForeColor = RGB(255, 100, 100) _
+    Else Me.Controls("lblStatus").ForeColor = RGB(110, 190, 140)
+End Sub
+
+Private Sub RefreshList()
+    On Error Resume Next
+    Dim lb As MSForms.ListBox: Set lb = Me.Controls("lstFacades")
+    lb.Clear
+    Dim i As Long
+    For i = 0 To mFC - 1
+        lb.AddItem CStr(i + 1) & ".  " & CStr(CLng(mFH(i))) & " x " & CStr(CLng(mFW(i))) & "  -  " & CStr(mFQ(i)) & " шт"
+    Next i
+End Sub
+
+Private Sub UpdatePreview()
+    On Error Resume Next
+    Dim totalQ As Long, totalArea As Double, i As Long
+    totalQ = 0: totalArea = 0
+    For i = 0 To mFC - 1
+        totalQ = totalQ + mFQ(i)
+        totalArea = totalArea + (mFW(i) / 1000) * (mFH(i) / 1000) * mFQ(i)
+    Next i
+
+    Dim shW As Double, shH As Double, shArea As Double, pct As Double
+    shW = TN(CT("txtSheetW"), 0): shH = TN(CT("txtSheetH"), 0)
+    shArea = (shW / 1000) * (shH / 1000)
+    If shArea > 0 Then pct = (totalArea / shArea) * 100 Else pct = 0
+
+    Dim fv As Long: fv = FM()
+    Me.Controls("lblPreview").Caption = FN(fv) & "   " & CStr(mFC) & " размер(ов),  " & CStr(totalQ) & " шт" & _
+        vbCrLf & "Лист: " & CStr(CLng(shW)) & "x" & CStr(CLng(shH)) & " мм"
+    Me.Controls("lblArea").Caption = "S=" & Format$(totalArea, "0.00") & "м²  Исп." & Format$(pct, "0") & "%"
+End Sub
+
+Private Sub btnAdd_Click()
+    Dim h As Double, w As Double, q As Long
+    h = TN(CT("txtFH"), 0): w = TN(CT("txtFW"), 0): q = CLng(TN(CT("txtFQ"), 1))
+    If h <= 0 Or w <= 0 Then MsgBox "Введите H и W > 0", vbExclamation: Exit Sub
+    If q < 1 Then q = 1
+    If q > 500 Then q = 500
+    If mFC = 0 Then
+        ReDim mFH(0 To 0): ReDim mFW(0 To 0): ReDim mFQ(0 To 0)
+    Else
+        ReDim Preserve mFH(0 To mFC)
+        ReDim Preserve mFW(0 To mFC)
+        ReDim Preserve mFQ(0 To mFC)
+    End If
+    mFH(mFC) = h: mFW(mFC) = w: mFQ(mFC) = q
+    mFC = mFC + 1
+    RefreshList: UpdatePreview
+    SetStatus "Добавлено: " & CStr(CLng(h)) & "x" & CStr(CLng(w)) & " x" & CStr(q)
+End Sub
+
+Private Sub btnDel_Click()
+    On Error Resume Next
+    Dim lb As MSForms.ListBox: Set lb = Me.Controls("lstFacades")
+    Dim idx As Long: idx = lb.ListIndex
+    If idx < 0 Or mFC = 0 Then Exit Sub
+    Dim i As Long
+    For i = idx To mFC - 2
+        mFH(i) = mFH(i + 1): mFW(i) = mFW(i + 1): mFQ(i) = mFQ(i + 1)
+    Next i
+    mFC = mFC - 1
+    If mFC > 0 Then
+        ReDim Preserve mFH(0 To mFC - 1)
+        ReDim Preserve mFW(0 To mFC - 1)
+        ReDim Preserve mFQ(0 To mFC - 1)
+    End If
+    RefreshList: UpdatePreview: SetStatus "Удалено"
+End Sub
+
+Private Sub btnClr_Click()
+    mFC = 0
+    ReDim mFH(0 To 0): ReDim mFW(0 To 0): ReDim mFQ(0 To 0)
+    RefreshList: UpdatePreview: SetStatus "Список очищен"
+End Sub
+
+
+Private Sub btnCreate_Click()
+    BuildFacade False
+End Sub
+
+Private Sub btnCreateClose_Click()
+    BuildFacade True
+End Sub
+
+Private Sub btnClose_Click()
+    Unload Me
+End Sub
+
+Private Sub cboFType_Change()
+    UpdatePreview
+End Sub
+
+Private Sub BuildFacade(ByVal closeAfter As Boolean)
+    If mFC = 0 Then
+        MsgBox "Добавь фасады", vbExclamation
+        Exit Sub
+    End If
+
+    RunCutPRO _
+        TN(CT("txtSheetW"), 2800), _
+        TN(CT("txtSheetH"), 2070), _
+        TN(CT("txtGap"), 4), _
+        mFC, mFW, mFH, mFQ
+
+    Dim totalQ As Long, i As Long
+    For i = 0 To mFC - 1
+        totalQ = totalQ + mFQ(i)
+    Next i
+
+    Dim stat As String
+    stat = "Листов: " & mSheets & _
+           " | Размещено: " & mPlaced & "/" & totalQ & _
+           " | Не влезло: " & mSkipped
+
+    Me.Controls("lblStat").Caption = stat
+
+    If closeAfter Then Unload Me
+End Sub
