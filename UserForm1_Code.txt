@@ -32,9 +32,9 @@ Private mLast3DSig As String
 Private mPresetFM() As Long
 Private mPresetRows() As String
 ' Метка сборки: после deploy_direct.ps1 заголовок формы должен содержать эту строку (иначе в GMS старый код).
-Private Const SB_CODE_REV As String = "2026-verify"
+Private Const SB_CODE_REV As String = "2026-no-bv-arcs"
 ' Вкладка «Основное» ~500px по вертикали; MultiPage ниже обрезает низ (+/−/C и список).
-Private Const MP_MAIN_HEIGHT As Long = 518
+Private Const MP_MAIN_HEIGHT As Long = 486
 Private Const PREVIEW_3D_PX As Long = 53
 Private Const REG_APP As String = "MebelShapeBuilder"
 ' Shell.Explorer.2: на части установок даёт 438 при открытии формы — тогда поставьте False
@@ -167,14 +167,17 @@ Private Sub UserForm_Initialize()
     With tbNeo: .Left = p: .Top = y: .Width = formW: .Height = 20: .BackColor = INP: .ForeColor = FGD: .MultiLine = True: .Text = "": End With
     On Error Resume Next: tbNeo.ScrollBars = 2: On Error GoTo 0
     y = y + 22
-    ML "lblIns", "Отступ б/в", p, y, 52, 10, LBL, 0, False, 1, pg0
-    MT "txtInsetX", "70", p + 54, y, 34, 15, INP, FGD, pg0
-    MT "txtInsetY", "70", p + 92, y, 34, 15, INP, FGD, pg0
-    y = y + 16
-    ML "lblArcs", "Дуги в/б", p, y, 44, 10, LBL, 0, False, 1, pg0
-    MT "txtArcTop", "30", p + 46, y, 34, 15, INP, FGD, pg0
-    MT "txtArcSide", "30", p + 84, y, 34, 15, INP, FGD, pg0
-    y = y + 16
+    ' Отступ б/в и дуги в/б убраны с экрана; значения в скрытых полях (реестр, пресеты типов, SetPanelGeometry)
+    MT "txtInsetX", "70", -200, 0, 34, 15, INP, FGD, pg0
+    MT "txtInsetY", "70", -200, 0, 34, 15, INP, FGD, pg0
+    MT "txtArcTop", "30", -200, 0, 34, 15, INP, FGD, pg0
+    MT "txtArcSide", "30", -200, 0, 34, 15, INP, FGD, pg0
+    On Error Resume Next
+    pg0.Controls("txtInsetX").Visible = False
+    pg0.Controls("txtInsetY").Visible = False
+    pg0.Controls("txtArcTop").Visible = False
+    pg0.Controls("txtArcSide").Visible = False
+    On Error GoTo 0
     ML "lblContourBlock", "Контур (как в Corel)", p, y, formW, 9, MUTED, 0, False, 1, pg0
     y = y + 10
     ' Одна строка: направления | шаги | смещение — ширина formW
@@ -722,12 +725,6 @@ Private Sub UpdateFacadeParamPanels()
     Me.Controls("txtFacadeSegMm").Visible = neo
     Me.Controls("lbl3DPrev").Visible = neo
     ' Shell.Explorer.2 (wbFacade3D) в Corel MSForms часто не поддерживает .Visible → 438 — не трогаем.
-    Me.Controls("lblIns").Visible = Not neo
-    Me.Controls("lblArcs").Visible = Not neo
-    Me.Controls("txtInsetX").Visible = Not neo
-    Me.Controls("txtInsetY").Visible = Not neo
-    Me.Controls("txtArcTop").Visible = Not neo
-    Me.Controls("txtArcSide").Visible = Not neo
     Me.Controls("lblContourBlock").Visible = Not neo
     Me.Controls("optContourCenter").Visible = Not neo
     Me.Controls("optContourInner").Visible = Not neo
