@@ -35,7 +35,7 @@
 
 6) ОТКАТ / ФАЙЛЫ
   - Исходники: CorelDRAW_Furniture_Facades_Macro.bas, UserForm1_Code.txt.
-  - Заливка: deploy_direct.ps1 (поддержка CorelDRAW 2026/2025 через COM .27/.26 и ниже).
+  - Заливка: deploy_direct.ps1 + ShapeBuilder_CorelConnect.ps1 (CorelDRAW 2026: COM .28/.27 и ниже).
   - Релиз 0.1.4: RELEASE_0_1_4_2026.txt, git tag v0.1.4; заливка: deploy_all.ps1 (лог deploy_last_log.txt).
   - Старые снимки: MACRO_2_0_BASELINE.txt, MACRO_2_1_BASELINE.txt, MACRO_2_2_BASELINE.txt.
 

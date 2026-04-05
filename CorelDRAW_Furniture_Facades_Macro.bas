@@ -106,6 +106,11 @@ Public Sub RunWardenShapeBuilder()
     RunModernShapeBuilder
 End Sub
 
+' Главное имя в списке макросов Corel (Сервис — Макросы — Запустить): GlobalMacros → Module1.Фасады
+Public Sub Фасады()
+    RunModernShapeBuilder
+End Sub
+
 ' П.1 порядка работ: проверка версии без открытия формы (Сервис — Макросы — Запустить)
 Public Sub ShapeBuilderAbout()
     MsgBox "Shape Builder Pro" & vbCrLf & _
@@ -114,7 +119,7 @@ Public Sub ShapeBuilderAbout()
            "Запустите deploy_direct.ps1 из папки проекта (или ЗАПУСК_ДЕПЛОЯ.bat), затем в VBA: Сохранить GlobalMacros." & vbCrLf & vbCrLf & _
            "Типы фасадов — в CSV (кнопки «+ сохранить тип», «Удалить выбранный тип», «Типы…»)." & vbCrLf & _
            "Неоклассика: превью — сечение шпунта (мм), поле сегментов на «Основное»." & vbCrLf & vbCrLf & _
-           "Основной запуск: Module1.RunModernShapeBuilder", _
+           "Основной запуск: Module1.Фасады (или RunModernShapeBuilder).", _
            vbInformation, "Shape Builder"
 End Sub
 

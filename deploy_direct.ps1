@@ -27,50 +27,11 @@ try {
 }
 Write-Host ''
 
-function Get-CorelApplication {
-    # Сначала — уже запущенный Corel: без суффикса версии (ROT), иначе часто не находит 2024/2023.
-    try {
-        $a = [Runtime.InteropServices.Marshal]::GetActiveObject('CorelDRAW.Application')
-        if ($a) {
-            Write-Host 'Corel: CorelDRAW.Application (running, no version suffix)'
-            return $a
-        }
-    } catch {}
-    # Суффикс ProgID: CorelDRAW.Application.<N>. 2026/2025 — в начале списка.
-    $versions = @('27', '26', '25', '24', '23', '22', '21')
-    foreach ($v in $versions) {
-        $progId = "CorelDRAW.Application.$v"
-        try {
-            $a = [Runtime.InteropServices.Marshal]::GetActiveObject($progId)
-            if ($a) {
-                Write-Host "Corel: $progId (running)"
-                return $a
-            }
-        } catch {}
-    }
-    try {
-        $a = New-Object -ComObject CorelDRAW.Application
-        if ($a) {
-            Write-Host 'Corel: started CorelDRAW.Application (no version suffix)'
-            $a.Visible = $true
-            Start-Sleep -Seconds 3
-            return $a
-        }
-    } catch {}
-    foreach ($v in $versions) {
-        $progId = "CorelDRAW.Application.$v"
-        try {
-            $a = New-Object -ComObject $progId
-            if ($a) {
-                Write-Host "Corel: started $progId"
-                $a.Visible = $true
-                Start-Sleep -Seconds 3
-                return $a
-            }
-        } catch {}
-    }
-    return $null
+$corelConnect = Join-Path $basePath 'ShapeBuilder_CorelConnect.ps1'
+if (-not (Test-Path -LiteralPath $corelConnect)) {
+    throw "Missing $corelConnect (CorelDRAW 2026 COM helpers)."
 }
+. $corelConnect
 
 function Wait-Vbe([object]$app, [int]$maxWaitMs = 20000) {
     $vbe = $null
@@ -87,7 +48,7 @@ function Wait-Vbe([object]$app, [int]$maxWaitMs = 20000) {
 }
 
 try {
-    $app = Get-CorelApplication
+    $app = Get-ShapeBuilderCorelApplication
     if (-not $app) {
         throw 'CorelDRAW COM not found. Open CorelDRAW manually, then run this script again.'
     }
@@ -204,6 +165,7 @@ try {
     }
 
     Write-Host 'DIRECT DEPLOY OK.'
+    exit 0
 } catch {
     Write-Host ("DIRECT DEPLOY ERROR: " + $_.Exception.Message)
     exit 1

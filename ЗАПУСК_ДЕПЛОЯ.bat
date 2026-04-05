@@ -2,7 +2,7 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 echo ========================================
-echo  Shape Builder — заливка в GlobalMacros
+echo  Shape Builder — заливка в GlobalMacros (CorelDRAW 2026)
 echo  Папка: %~dp0
 echo ========================================
 echo.
@@ -20,6 +20,7 @@ if %ERR% neq 0 (
 ) else (
   echo Готово. Откройте Alt+F11 - Файл - Сохранить GlobalMacros.
   echo В заголовке: v0.1.4 [2026-verify], под заголовком фасада - строка про 0.1.4 контур
+  echo Запуск макроса: Сервис - Макросы - GlobalMacros - Module1.Фасады
 )
 echo.
 pause
