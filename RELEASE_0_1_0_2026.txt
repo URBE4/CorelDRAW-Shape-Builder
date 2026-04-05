@@ -1,0 +1,16 @@
+================================================================================
+  Shape Builder Pro — релиз 0.1.0 (2026)
+================================================================================
+
+Semver:           0.1.0
+Год / сборка:     SB_CODE_REV = "2026"  (UserForm1_Code.txt)
+Код:              Module1.MEBEL_MACRO_VERSION() = "0.1.0"
+Git:              тег v0.1.0
+
+Исходники
+  CorelDRAW_Furniture_Facades_Macro.bas, UserForm1_Code.txt, deploy_direct.ps1
+
+Установка
+  См. RESTORE.txt — deploy_direct.ps1, затем в VBA: Сохранить GlobalMacros.
+
+================================================================================

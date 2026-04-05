@@ -1,164 +1,847 @@
 Option Explicit
 
-Private WithEvents btnCreate As MSForms.CommandButton
-Private WithEvents btnClose As MSForms.CommandButton
-Private WithEvents btnCreateClose As MSForms.CommandButton
+Private WithEvents cboFType As MSForms.ComboBox
+' Runtime CommandButton: в CorelDRAW надёжнее WithEvents, чем bAdd_Click по имени контрола
 Private WithEvents btnAdd As MSForms.CommandButton
 Private WithEvents btnDel As MSForms.CommandButton
 Private WithEvents btnClr As MSForms.CommandButton
-Private WithEvents cboFType As MSForms.ComboBox
+Private WithEvents btnCreate As MSForms.CommandButton
+Private WithEvents btnClose As MSForms.CommandButton
+Private WithEvents btnCrCl As MSForms.CommandButton
+Private WithEvents btnCsvExport As MSForms.CommandButton
+Private WithEvents btnCsvImport As MSForms.CommandButton
+Private WithEvents btnExportDxf As MSForms.CommandButton
+Private WithEvents btnSwapSheet As MSForms.CommandButton
+Private WithEvents btnFacadeTypeSave As MSForms.CommandButton
+Private WithEvents btnFacadeTypeMgr As MSForms.CommandButton
+Private WithEvents btnFacadeTypeDel As MSForms.CommandButton
+Private WithEvents cboOuterQty As MSForms.ComboBox
+Private WithEvents cboInnerQty As MSForms.ComboBox
 
 Private mFH() As Double
 Private mFW() As Double
 Private mFQ() As Long
 Private mFC As Long
+Private mInitializing As Boolean
+Private mPrevNestMode As Long
+Private mPrevFTypeIdx As Long
+' Кэш 3D: не дергать WebBrowser при тех же строке списка / H×W / типе формы (смена листа в полях — без лишней перерисовки).
+Private mLast3DSig As String
+' Пресеты: FM по ListIndex + полная строка CSV; типы только из facade_types.csv
+Private mPresetFM() As Long
+Private mPresetRows() As String
+' Метка сборки: после deploy_direct.ps1 заголовок формы должен содержать эту строку (иначе в GMS старый код).
+Private Const SB_CODE_REV As String = "2026"
+' Вкладка «Основное» ~500px по вертикали; MultiPage ниже обрезает низ (+/−/C и список).
+Private Const MP_MAIN_HEIGHT As Long = 508
+Private Const PREVIEW_3D_PX As Long = 53
+Private Const REG_APP As String = "MebelShapeBuilder"
+' Shell.Explorer.2: на части установок даёт 438 при открытии формы — тогда поставьте False
+Private Const USE_3D_WEB_PREVIEW As Boolean = True
 
 Private Sub UserForm_Initialize()
+    mInitializing = True
+    mLast3DSig = vbNullString
     On Error Resume Next
-    Dim sl As Long: sl = 0
-    Do While Me.Controls.Count > 0 And sl < 200: Me.Controls.Remove 0: sl = sl + 1: Loop
+    Dim sl As Long
+    For sl = Me.Controls.Count - 1 To 0 Step -1
+        Me.Controls.Remove sl
+    Next sl
     On Error GoTo 0
 
-    Me.Caption = "Shape Builder"
-    Me.BackColor = RGB(25, 25, 42)
-    Me.Width = 340
-    Me.Height = 624
+    Me.Caption = "Shape Builder Pro v" & Module1.MEBEL_MACRO_VERSION() & "  [" & SB_CODE_REV & "]"
+    ' Палитра «cool slate» (слева→справа): #E5E9EC #CED4D9 #B2B9BD #969FA5 #5E6B73 #323D43
+    ' Тема + геометрия: в Corel часть свойств UserForm даёт 438 — только под Resume Next
+    On Error Resume Next
+    Me.BackColor = RGB(229, 233, 236)
+    Me.BorderStyle = 1
+    Me.StartUpPosition = 2
+    Me.Width = 268
+    Me.Height = 648
+    Me.Font.Name = "Segoe UI"
+    Me.Font.Size = 8
+    On Error GoTo 0
 
-    Dim INP As Long, FG As Long, LBL As Long, DK As Long, CK As Long, AC As Long
-    INP = RGB(38, 40, 56): FG = RGB(220, 225, 235)
-    LBL = RGB(160, 165, 185): DK = RGB(15, 15, 28)
-    CK = RGB(185, 190, 210): AC = RGB(40, 110, 220)
+    Dim INP As Long, FG As Long, FGD As Long, LBL As Long, DK As Long, CK As Long, AC As Long
+    Dim BG As Long, BTN2 As Long, MUTED As Long
+    Dim C1 As Long, C2 As Long, C4 As Long, C5 As Long, C6 As Long
+    C1 = RGB(229, 233, 236)
+    C2 = RGB(206, 212, 217)
+    C4 = RGB(150, 159, 165)
+    C5 = RGB(94, 107, 115)
+    C6 = RGB(50, 61, 67)
+    BG = C1
+    DK = C2
+    INP = C2
+    FG = C1
+    FGD = C6
+    LBL = C6
+    CK = C5
+    AC = C6
+    BTN2 = C5
+    MUTED = C4
 
-    Dim p As Long, fw As Long, hw As Long, rx As Long, y As Long
-    p = 8: fw = 310: hw = 150: rx = 164: y = 4
-
-    ML "lblPreview", "", p, y, fw, 50, FG, DK, True, 2
-    y = y + 54
-
-    ML "lblType", "Тип формы", p, y, 80, 12, LBL
-    y = y + 12
-    Set cboFType = Me.Controls.Add("Forms.ComboBox.1", "cboTab", True)
-    With cboFType: .Left = p: .Top = y: .Width = fw: .Height = 20: .BackColor = INP: .ForeColor = FG: .Style = 2: End With
-    cboFType.AddItem "Классика 1": cboFType.AddItem "Классика 2": cboFType.AddItem "Прямой"
-    cboFType.ListIndex = 0
-    y = y + 24
-
-    ML "lblSh", "Лист (мм)", p, y, 70, 12, LBL
-    y = y + 12
-    ML "lblShH", "В", p, y + 3, 10, 12, LBL
-    MT "txtSheetH", "2800", p + 12, y, 56, 18, INP, FG
-    ML "lblShW", "Ш", p + 74, y + 3, 10, 12, LBL
-    MT "txtSheetW", "2070", p + 86, y, 56, 18, INP, FG
-    ML "lblGap", "Отступ", p + 150, y + 3, 38, 12, LBL
-    MT "txtGap", "25", p + 190, y, 28, 18, INP, FG
-    y = y + 22
-
-    ML "lblFac", "Фасады: H x W x Кол-во", p, y, 200, 12, LBL
-    y = y + 13
-
-    ML "lblFH", "H", p, y + 3, 10, 12, LBL
-    MT "txtFH", "720", p + 12, y, 48, 18, INP, FG
-    ML "lblFW", "W", p + 64, y + 3, 12, 12, LBL
-    MT "txtFW", "600", p + 78, y, 48, 18, INP, FG
-    ML "lblFQ", "x", p + 132, y + 3, 10, 12, LBL
-    MT "txtFQ", "1", p + 144, y, 26, 18, INP, FG
-
-    Set btnAdd = Me.Controls.Add("Forms.CommandButton.1", "bAdd", True)
-    With btnAdd: .Left = p + 176: .Top = y: .Width = 28: .Height = 18: .BackColor = RGB(50, 140, 50): .ForeColor = RGB(255, 255, 255): .Caption = "+": End With
-    Set btnDel = Me.Controls.Add("Forms.CommandButton.1", "bDel", True)
-    With btnDel: .Left = p + 208: .Top = y: .Width = 28: .Height = 18: .BackColor = RGB(160, 50, 50): .ForeColor = RGB(255, 255, 255): .Caption = "-": End With
-    Set btnClr = Me.Controls.Add("Forms.CommandButton.1", "bClr", True)
-    With btnClr: .Left = p + 240: .Top = y: .Width = 28: .Height = 18: .BackColor = RGB(100, 100, 50): .ForeColor = RGB(255, 255, 255): .Caption = "C": End With
-    y = y + 22
+    Dim p As Long, formW As Long, hw As Long, rx As Long, y As Long
+    Dim mp As MSForms.MultiPage
+    Dim pg0 As Object, pg1 As Object, pg2 As Object
+    p = 4: formW = 248: hw = 120: rx = 128: y = 2
 
     On Error Resume Next
-    Dim lb As MSForms.ListBox
-    Set lb = Me.Controls.Add("Forms.ListBox.1", "lstFacades", True)
-    If Not lb Is Nothing Then
-        lb.Left = p: lb.Top = y: lb.Width = fw: lb.Height = 68
-        lb.BackColor = INP: lb.ForeColor = FG
-        lb.SpecialEffect = 0: lb.BorderStyle = 1
-        lb.BorderColor = RGB(60, 65, 90)
+    Set mp = Me.Controls.Add("Forms.MultiPage.1", "mpMain", True)
+    With mp
+        .Left = p
+        .Top = y
+        .Width = formW
+        .Height = MP_MAIN_HEIGHT
+        ' MultiPage.Font в Corel MSForms часто 438 — шрифт вкладок по умолчанию
+    End With
+    mp.Pages(0).Caption = "Основное"
+    If mp.Pages.Count < 2 Then mp.Pages.Add
+    mp.Pages(1).Caption = "Раскрой"
+    If mp.Pages.Count < 3 Then mp.Pages.Add
+    mp.Pages(2).Caption = "Цена"
+    Set pg0 = mp.Pages(0)
+    Set pg1 = mp.Pages(1)
+    Set pg2 = mp.Pages(2)
+    ' В Corel MSForms BackColor у MultiPage/Page и у CheckBox часто даёт ошибку 438 — не задаём
+
+    y = 0
+    ML "lblPreview", "", p, y, formW, 16, FGD, DK, True, 2, pg0
+    y = y + 18
+    ML "lbl3DPrev", "Неоклассика: сечение верхнего шпунта (мм), поле сегментов ниже", p, y, formW, 9, LBL, 0, False, 1, pg0
+    y = y + 8
+    On Error Resume Next
+    Dim wbAx As Object
+    If USE_3D_WEB_PREVIEW Then
+        Set wbAx = pg0.Controls.Add("Shell.Explorer.2", "wbFacade3D", True)
+        If Not wbAx Is Nothing Then
+            wbAx.Left = p
+            wbAx.Top = y
+            wbAx.Width = formW
+            wbAx.Height = PREVIEW_3D_PX
+            y = y + PREVIEW_3D_PX + 2
+        Else
+            y = y + 8
+        End If
+    Else
+        y = y + 8
     End If
     On Error GoTo 0
-    y = y + 72
 
-    ML "lblParams", "Параметры фасада", p, y, 140, 12, LBL
-    y = y + 13
-    ML "lblIns", "Отст. б/в", p, y, 56, 12, LBL
-    MT "txtInsetX", "70", p + 58, y - 1, 36, 17, INP, FG
-    MT "txtInsetY", "70", p + 98, y - 1, 36, 17, INP, FG
-    ML "lblArcs", "Дуги в/б", rx, y, 50, 12, LBL
-    MT "txtArcTop", "30", rx + 52, y - 1, 36, 17, INP, FG
-    MT "txtArcSide", "30", rx + 92, y - 1, 36, 17, INP, FG
-    y = y + 20
+    ML "lblType", "Тип формы", p, y, 80, 10, LBL, 0, False, 1, pg0
+    y = y + 10
+    Set cboFType = pg0.Controls.Add("Forms.ComboBox.1", "cboFType", True)
+    With cboFType: .Left = p: .Top = y: .Width = formW: .Height = 16: End With
+    RebuildFacadeTypeCombo
+    y = y + 18
+    Set btnFacadeTypeSave = pg0.Controls.Add("Forms.CommandButton.1", "btnFacadeTypeSave", True)
+    With btnFacadeTypeSave: .Left = p: .Top = y: .Width = 120: .Height = 16: .Caption = "+ сохранить тип": .BackColor = BTN2: .ForeColor = FG: End With
+    Set btnFacadeTypeMgr = pg0.Controls.Add("Forms.CommandButton.1", "btnFacadeTypeMgr", True)
+    With btnFacadeTypeMgr: .Left = p + 124: .Top = y: .Width = 120: .Height = 16: .Caption = "Типы…": .BackColor = BTN2: .ForeColor = FG: End With
+    y = y + 18
+    Set btnFacadeTypeDel = pg0.Controls.Add("Forms.CommandButton.1", "btnFacadeTypeDel", True)
+    With btnFacadeTypeDel: .Left = p: .Top = y: .Width = formW: .Height = 16: .Caption = "Удалить выбранный тип": .BackColor = RGB(178, 58, 58): .ForeColor = RGB(255, 255, 255): End With
+    On Error Resume Next: btnFacadeTypeDel.Font.Size = 8: On Error GoTo 0
+    y = y + 18
 
-    ML "lblOL", "Вн.", p, y + 1, 18, 12, LBL
-    MT "txtOuterQty", "0", p + 20, y, 20, 17, INP, FG
-    ML "lblOS", "см", p + 44, y + 1, 14, 12, LBL
-    MT "txtOuter", "23", p + 60, y, 30, 17, INP, FG
-    ML "lblIL", "Вт.", rx, y + 1, 18, 12, LBL
-    MT "txtInnerQty", "1", rx + 20, y, 20, 17, INP, FG
-    ML "lblIS", "см", rx + 44, y + 1, 14, 12, LBL
-    MT "txtInner", "20", rx + 60, y, 30, 17, INP, FG
-    y = y + 20
+    ML "lblParams", "Параметры фасада", p, y, 140, 10, LBL, 0, False, 1, pg0
+    y = y + 10
+    ML "lblSegN", "Сегментов", p, y, 48, 10, LBL, 0, False, 1, pg0
+    Dim cbSeg As MSForms.ComboBox
+    Set cbSeg = pg0.Controls.Add("Forms.ComboBox.1", "cboSegN", True)
+    With cbSeg: .Left = p + 52: .Top = y + 1: .Width = 44: .Height = 16: End With
+    Dim si As Long
+    For si = 2 To 8
+        cbSeg.AddItem CStr(si)
+    Next si
+    cbSeg.ListIndex = 2
+    y = y + 17
+    ML "lblSegHint", "Длины сегм., мм (через ; или с новой строки)", p, y, formW, 10, MUTED, 0, False, 1, pg0
+    y = y + 10
+    Dim tbNeo As MSForms.TextBox
+    Set tbNeo = pg0.Controls.Add("Forms.TextBox.1", "txtFacadeSegMm", True)
+    With tbNeo: .Left = p: .Top = y: .Width = formW: .Height = 20: .BackColor = INP: .ForeColor = FGD: .MultiLine = True: .Text = "": End With
+    On Error Resume Next: tbNeo.ScrollBars = 2: On Error GoTo 0
+    y = y + 22
+    ML "lblIns", "Отступ б/в", p, y, 52, 10, LBL, 0, False, 1, pg0
+    MT "txtInsetX", "70", p + 54, y, 34, 15, INP, FGD, pg0
+    MT "txtInsetY", "70", p + 92, y, 34, 15, INP, FGD, pg0
+    y = y + 16
+    ML "lblArcs", "Дуги в/б", p, y, 44, 10, LBL, 0, False, 1, pg0
+    MT "txtArcTop", "30", p + 46, y, 34, 15, INP, FGD, pg0
+    MT "txtArcSide", "30", p + 84, y, 34, 15, INP, FGD, pg0
+    y = y + 16
+    ML "lblOffCounts", "Отступы: число (0–24) и шаг, мм", p, y, formW, 9, MUTED, 0, False, 1, pg0
+    y = y + 9
+    ML "lblOL", "Внеш.", p, y + 1, 28, 10, LBL, 0, False, 1, pg0
+    Set cboOuterQty = pg0.Controls.Add("Forms.ComboBox.1", "cboOuterQty", True)
+    With cboOuterQty: .Left = p + 30: .Top = y: .Width = 28: .Height = 15: .Style = 2: .BackColor = INP: .ForeColor = FGD: End With
+    Dim qj As Long
+    For qj = 0 To 24
+        cboOuterQty.AddItem CStr(qj)
+    Next qj
+    cboOuterQty.ListIndex = 0
+    ML "lblOS", "×", p + 60, y + 1, 8, 10, LBL, 0, False, 1, pg0
+    MT "txtOuter", "23", p + 70, y, 32, 15, INP, FGD, pg0
+    ML "lblIL", "Внутр.", p + 106, y + 1, 32, 10, LBL, 0, False, 1, pg0
+    Set cboInnerQty = pg0.Controls.Add("Forms.ComboBox.1", "cboInnerQty", True)
+    With cboInnerQty: .Left = p + 140: .Top = y: .Width = 28: .Height = 15: .Style = 2: .BackColor = INP: .ForeColor = FGD: End With
+    For qj = 0 To 24
+        cboInnerQty.AddItem CStr(qj)
+    Next qj
+    cboInnerQty.ListIndex = 1
+    ML "lblIS", "×", p + 170, y + 1, 8, 10, LBL, 0, False, 1, pg0
+    MT "txtInner", "20", p + 180, y, 32, 15, INP, FGD, pg0
+    y = y + 16
+    ML "lblBL", "Обводка", p, y, 44, 10, LBL, 0, False, 1, pg0
+    y = y + 10
+    Dim cbB As MSForms.ComboBox
+    Set cbB = pg0.Controls.Add("Forms.ComboBox.1", "cboBorder", True)
+    With cbB: .Left = p: .Top = y: .Width = formW: .Height = 16: End With
+    cbB.AddItem "Без обв.": cbB.AddItem "Тонкая": cbB.AddItem "Средняя": cbB.ListIndex = 0
+    y = y + 18
+    ML "lblOrnL", "Орнамент", p, y, 50, 10, LBL, 0, False, 1, pg0
+    y = y + 10
+    Dim cbO As MSForms.ComboBox
+    Set cbO = pg0.Controls.Add("Forms.ComboBox.1", "cboOrn", True)
+    With cbO: .Left = p: .Top = y: .Width = formW: .Height = 16: End With
+    cbO.AddItem "Без орн.": cbO.AddItem "Углы": cbO.AddItem "Классик": cbO.ListIndex = 0
+    y = y + 18
 
-    ML "lblBL", "Обводка", p, y, 50, 12, LBL
-    ML "lblOrnL", "Орнамент", rx, y, 60, 12, LBL
-    y = y + 12
-    Dim cb As MSForms.ComboBox
-    Set cb = Me.Controls.Add("Forms.ComboBox.1", "cboBorder", True)
-    With cb: .Left = p: .Top = y: .Width = hw: .Height = 18: .BackColor = INP: .ForeColor = FG: .Style = 2: End With
-    cb.AddItem "Без обв.": cb.AddItem "Тонкая": cb.AddItem "Средняя": cb.ListIndex = 0
-    Set cb = Me.Controls.Add("Forms.ComboBox.1", "cboOrn", True)
-    With cb: .Left = rx: .Top = y: .Width = hw: .Height = 18: .BackColor = INP: .ForeColor = FG: .Style = 2: End With
-    cb.AddItem "Без орн.": cb.AddItem "Углы": cb.AddItem "Классик": cb.ListIndex = 0
+    ML "lblSh", "Лист мм", p, y, 50, 10, LBL, 0, False, 1, pg0
+    y = y + 10
+    ML "lblShH", "В", p, y + 1, 8, 10, LBL, 0, False, 1, pg0
+    MT "txtSheetH", "2800", p + 10, y, 50, 15, INP, FGD, pg0
+    ML "lblShW", "Ш", p + 64, y + 1, 8, 10, LBL, 0, False, 1, pg0
+    MT "txtSheetW", "2070", p + 76, y, 50, 15, INP, FGD, pg0
+    Set btnSwapSheet = pg0.Controls.Add("Forms.CommandButton.1", "btnSwapSheet", True)
+    With btnSwapSheet: .Left = p + 128: .Top = y: .Width = 22: .Height = 15: .Caption = "⇄": .BackColor = BTN2: .ForeColor = FG: End With
+    On Error Resume Next: btnSwapSheet.Font.Size = 7: On Error GoTo 0
+    ML "lblGap", "Зазор", p + 152, y + 1, 28, 10, LBL, 0, False, 1, pg0
+    MT "txtGap", "25", p + 182, y, 26, 15, INP, FGD, pg0
+    y = y + 16
+
+    ML "lblFac", "Фасад МДФ/ПВХ · H×W×шт", p, y, formW, 10, LBL, 0, False, 1, pg0
+    y = y + 10
+    ML "lblFH", "H", p, y + 1, 8, 10, LBL, 0, False, 1, pg0
+    MT "txtFH", "720", p + 10, y, 44, 15, INP, FGD, pg0
+    ML "lblFW", "W", p + 58, y + 1, 10, 10, LBL, 0, False, 1, pg0
+    MT "txtFW", "600", p + 72, y, 44, 15, INP, FGD, pg0
+    ML "lblFQ", "×", p + 120, y + 1, 8, 10, LBL, 0, False, 1, pg0
+    MT "txtFQ", "1", p + 130, y, 22, 15, INP, FGD, pg0
+    y = y + 17
+    ' +/−/C — отдельная строка (иначе заголовок «Список» перекрывает низ кнопок в Corel MultiPage)
+    Dim colAdd As Long, colDel As Long, colClr As Long, capW As Long, g As Long, x0 As Long
+    colAdd = RGB(46, 132, 72)
+    colDel = RGB(178, 58, 58)
+    colClr = RGB(76, 88, 56)
+    capW = 28: g = 5
+    x0 = p + formW - 3 * capW - 2 * g
+    Set btnAdd = pg0.Controls.Add("Forms.CommandButton.1", "btnAdd", True)
+    With btnAdd: .Left = x0: .Top = y: .Width = capW: .Height = 18: .BackColor = colAdd: .ForeColor = RGB(255, 255, 255): .Caption = "+": End With
+    Set btnDel = pg0.Controls.Add("Forms.CommandButton.1", "btnDel", True)
+    With btnDel: .Left = x0 + capW + g: .Top = y: .Width = capW: .Height = 18: .BackColor = colDel: .ForeColor = RGB(255, 255, 255): .Caption = "-": End With
+    Set btnClr = pg0.Controls.Add("Forms.CommandButton.1", "btnClr", True)
+    With btnClr: .Left = x0 + 2 * (capW + g): .Top = y: .Width = capW: .Height = 18: .BackColor = colClr: .ForeColor = RGB(245, 248, 240): .Caption = "C": End With
+    y = y + 21
+
+    ML "lblFacList", "Список:", p, y, formW, 9, LBL, 0, False, 1, pg0
+    y = y + 9
+    On Error Resume Next
+    Dim lb As MSForms.ListBox
+    Set lb = pg0.Controls.Add("Forms.ListBox.1", "lstFacades", True)
+    If Not lb Is Nothing Then
+        lb.Left = p: lb.Top = y: lb.Width = formW: lb.Height = 31
+        lb.BackColor = DK: lb.ForeColor = FGD
+        lb.SpecialEffect = 0: lb.BorderStyle = 1
+        lb.Font.Size = 8
+        lb.Visible = True
+    End If
+    On Error Resume Next
+    btnAdd.ZOrder 0
+    btnDel.ZOrder 0
+    btnClr.ZOrder 0
+    On Error GoTo 0
+
+    y = 0
+    ML "lblAlgo", "Алгоритм", p, y, 200, 10, LBL, 0, False, 1, pg1
+    y = y + 10
+    Dim cbN As MSForms.ComboBox
+    Set cbN = pg1.Controls.Add("Forms.ComboBox.1", "cboNestMode", True)
+    With cbN: .Left = p: .Top = y: .Width = formW: .Height = 16: End With
+    cbN.AddItem "Полка · nesting": cbN.AddItem "Guillotine": cbN.AddItem "Строки (Excel)"
+    cbN.ListIndex = 0
+    y = y + 18
+    ML "lblNestHint", "Nesting — меньше листов. Guillotine: «полоса справа» — выкл. ⇄ = В↔Ш.", p, y, formW, 28, MUTED, 0, True, 1, pg1
+    y = y + 30
+    Dim chTall As MSForms.CheckBox
+    Set chTall = pg1.Controls.Add("Forms.CheckBox.1", "chkGuillotineTallRight", True)
+    With chTall: .Left = p: .Top = y: .Width = formW: .Height = 20: .Caption = "Guillotine: полоса справа на всю высоту": .Value = False: End With
     y = y + 22
 
-    ML "lblArea", "S=0.00 м²  Исп. 0%", p, y, fw, 14, RGB(180, 210, 255), 0, False, 3
+    ML "lblRM", "Поворот / зеркало", p, y, formW, 10, LBL, 0, False, 1, pg1
+    y = y + 10
+    Dim ch As MSForms.CheckBox
+    Set ch = pg1.Controls.Add("Forms.CheckBox.1", "chkRotate", True)
+    With ch: .Left = p: .Top = y: .Width = 108: .Height = 14: .Caption = "Поворот 90°": .Value = True: End With
+    Set ch = pg1.Controls.Add("Forms.CheckBox.1", "chkMirror", True)
+    With ch: .Left = p + 118: .Top = y: .Width = 108: .Height = 14: .Caption = "Зеркало": .Value = False: End With
+    y = y + 16
+    Set ch = pg1.Controls.Add("Forms.CheckBox.1", "chkGrain", True)
+    With ch: .Left = p: .Top = y: .Width = formW: .Height = 14: .Caption = "Волокно (без поворота)": .Value = False: End With
+    y = y + 16
+
+    ML "lblStock", "Листы В×Ш×шт (пусто = поля «Лист»)", p, y, formW, 10, LBL, 0, False, 1, pg1
+    y = y + 10
+    Dim tbSt As MSForms.TextBox
+    Set tbSt = pg1.Controls.Add("Forms.TextBox.1", "txtSheetStock", True)
+    With tbSt: .Left = p: .Top = y: .Width = formW: .Height = 36: .BackColor = INP: .ForeColor = FGD: .MultiLine = True: .Text = "": End With
+    On Error Resume Next: tbSt.ScrollBars = 2: On Error GoTo 0
+    y = y + 38
+    Set btnCsvExport = pg1.Controls.Add("Forms.CommandButton.1", "btnCsvExport", True)
+    With btnCsvExport: .Left = p: .Top = y: .Width = 118: .Height = 16: .Caption = "CSV →": .BackColor = BTN2: .ForeColor = FG: End With
+    Set btnCsvImport = pg1.Controls.Add("Forms.CommandButton.1", "btnCsvImport", True)
+    With btnCsvImport: .Left = p + 124: .Top = y: .Width = 118: .Height = 16: .Caption = "CSV ←": .BackColor = BTN2: .ForeColor = FG: End With
     y = y + 18
+    Dim chCnc As MSForms.CheckBox
+    Set chCnc = pg1.Controls.Add("Forms.CheckBox.1", "chkCncLayers", True)
+    With chCnc: .Left = p: .Top = y: .Width = 150: .Height = 14: .Caption = "ЧПУ CUT/TEXT": .Value = False: End With
+    Set btnExportDxf = pg1.Controls.Add("Forms.CommandButton.1", "btnExportDxf", True)
+    With btnExportDxf: .Left = p + 156: .Top = y: .Width = 86: .Height = 16: .Caption = "DXF": .BackColor = AC: .ForeColor = FG: End With
 
-    ML "lblStat", "", p, y, fw, 14, RGB(200, 180, 120), 0, False, 1
-    y = y + 18
+    y = 0
+    ML "lblPrice", "Цена листа / м² деталей", p, y, formW, 10, LBL, 0, False, 1, pg2
+    y = y + 10
+    MT "txtPriceSheet", "0", p, y, 64, 15, INP, FGD, pg2
+    ML "lblRub", "руб", p + 68, y + 1, 22, 10, LBL, 0, False, 1, pg2
+    MT "txtPriceM2", "0", p + 92, y, 64, 15, INP, FGD, pg2
+    ML "lblRub2", "руб/м²", p + 158, y + 1, 40, 10, LBL, 0, False, 1, pg2
+    y = y + 17
+    ML "lblCostResult", "Стоимость: —", p, y, formW, 12, CK, 0, False, 1, pg2
+    y = y + 13
+    ML "lblExportHint", "ЧПУ: галочка → СОЗДАТЬ → DXF.", p, y, formW, 10, MUTED, 0, False, 1, pg2
+    y = y + 12
+    ML "lblPriceParamsHint", "Параметры фасада — на вкладке «Основное».", p, y, formW, 10, MUTED, 0, False, 1, pg2
 
-    Set btnCreate = Me.Controls.Add("Forms.CommandButton.1", "bCreate", True)
-    With btnCreate: .Left = p: .Top = y: .Width = fw: .Height = 30: .BackColor = AC: .ForeColor = RGB(255, 255, 255): .Caption = "СОЗДАТЬ": .Font.Size = 11: .Font.Bold = True: End With
-    y = y + 34
-
-    Set btnClose = Me.Controls.Add("Forms.CommandButton.1", "bClose", True)
-    With btnClose: .Left = p: .Top = y: .Width = hw: .Height = 22: .BackColor = RGB(50, 52, 68): .ForeColor = RGB(200, 205, 215): .Caption = "ЗАКРЫТЬ": End With
-    Set btnCreateClose = Me.Controls.Add("Forms.CommandButton.1", "bCrCl", True)
-    With btnCreateClose: .Left = rx: .Top = y: .Width = hw: .Height = 22: .BackColor = RGB(50, 52, 68): .ForeColor = RGB(200, 205, 215): .Caption = "СОЗДАТЬ И ЗАКРЫТЬ": End With
-    y = y + 26
-    ML "lblStatus", "Готово", p, y, fw, 14, RGB(110, 190, 140)
+    ' Отступ от MultiPage — нижняя зона (S= / кнопки) не должна прилипать к вкладкам
+    y = mp.Top + mp.Height + 14
+    ML "lblArea", "S=0.00 м²  Исп. 0%", p, y, formW, 12, CK, 0, False, 3
+    y = y + 16
+    ML "lblStat", "", p, y, formW, 12, CK, 0, False, 1
+    y = y + 16
+    ' Зазор перед «СОЗДАТЬ» — от списка/статистики
+    y = y + 12
+    Set btnCreate = Me.Controls.Add("Forms.CommandButton.1", "btnCreate", True)
+    With btnCreate: .Left = p: .Top = y: .Width = formW: .Height = 22: .BackColor = AC: .ForeColor = FG: .Caption = "СОЗДАТЬ": End With
+    On Error Resume Next: btnCreate.Font.Size = 9: On Error GoTo 0
+    y = y + 28
+    Set btnClose = Me.Controls.Add("Forms.CommandButton.1", "btnClose", True)
+    With btnClose: .Left = p: .Top = y: .Width = hw: .Height = 18: .BackColor = BTN2: .ForeColor = FG: .Caption = "ЗАКРЫТЬ": End With
+    Set btnCrCl = Me.Controls.Add("Forms.CommandButton.1", "btnCrCl", True)
+    With btnCrCl: .Left = rx: .Top = y: .Width = hw: .Height = 18: .BackColor = BTN2: .ForeColor = FG: .Caption = "СОЗД.·ЗАКР.": End With
+    y = y + 24
+    ML "lblStatus", "Готово", p, y, formW, 11, CK
 
     On Error Resume Next
-    Me.Controls("txtOuterQty").TextAlign = 2
-    Me.Controls("txtInnerQty").TextAlign = 2
     Me.Controls("txtFQ").TextAlign = 2
     On Error GoTo 0
 
     mFC = 0
     ReDim mFH(0 To 0): ReDim mFW(0 To 0): ReDim mFQ(0 To 0)
+    LoadShapeBuilderSettings
+    LoadFacadesSessionSnapshot
+    ' Guillotine + жёсткая полоса справа часто даёт пустой остаток — при открытии сбрасываем (можно включить снова).
+    On Error Resume Next
+    If Me.Controls("cboNestMode").ListIndex = 1 Then Me.Controls("chkGuillotineTallRight").Value = False
+    mPrevNestMode = Me.Controls("cboNestMode").ListIndex
+    On Error GoTo 0
+    mInitializing = False
     UpdatePreview
+    RefreshReadyStatus
 End Sub
 
-Private Sub ML(n As String, c As String, l As Long, t As Long, w As Long, h As Long, fg As Long, Optional bg As Long = 0, Optional oq As Boolean = False, Optional al As Long = 1)
+Private Sub UserForm_QueryClose(Cancel As Integer, CloseMode As Integer)
+    SaveShapeBuilderSettings
+    SaveFacadesSessionSnapshot
+End Sub
+
+Private Sub UserForm_Terminate()
+    mInitializing = False
+End Sub
+
+Private Sub LoadShapeBuilderSettings()
     On Error Resume Next
-    Dim x As MSForms.Label: Set x = Me.Controls.Add("Forms.Label.1", n, True)
+    Me.Controls("txtSheetH").Text = GetSetting(REG_APP, "UI", "SheetH", "2800")
+    Me.Controls("txtSheetW").Text = GetSetting(REG_APP, "UI", "SheetW", "2070")
+    Me.Controls("txtGap").Text = GetSetting(REG_APP, "UI", "Gap", "25")
+    Dim nm As Long
+    nm = CLng(Val(GetSetting(REG_APP, "UI", "NestMode", "0")))
+    If nm < 0 Or nm > 2 Then nm = 0
+    Me.Controls("cboNestMode").ListIndex = nm
+    Me.Controls("chkRotate").Value = GetSetting(REG_APP, "UI", "Rotate", "1") = "1"
+    Me.Controls("chkMirror").Value = GetSetting(REG_APP, "UI", "Mirror", "0") = "1"
+    Me.Controls("chkGrain").Value = GetSetting(REG_APP, "UI", "Grain", "0") = "1"
+    Me.Controls("chkGuillotineTallRight").Value = GetSetting(REG_APP, "UI", "GuillotineTall", "0") = "1"
+    Me.Controls("chkCncLayers").Value = GetSetting(REG_APP, "UI", "CncLayers", "0") = "1"
+    Me.Controls("txtSheetStock").Text = GetSetting(REG_APP, "UI", "SheetStock", "")
+    Me.Controls("txtPriceSheet").Text = GetSetting(REG_APP, "UI", "PriceSheet", "0")
+    Me.Controls("txtPriceM2").Text = GetSetting(REG_APP, "UI", "PriceM2", "0")
+    Dim bd As Long, onn As Long
+    bd = CLng(Val(GetSetting(REG_APP, "UI", "BorderIdx", "0")))
+    If bd < 0 Or bd > 2 Then bd = 0
+    onn = CLng(Val(GetSetting(REG_APP, "UI", "OrnIdx", "0")))
+    If onn < 0 Or onn > 2 Then onn = 0
+    Me.Controls("cboBorder").ListIndex = bd
+    Me.Controls("cboOrn").ListIndex = onn
+    Me.Controls("txtInsetX").Text = GetSetting(REG_APP, "UI", "InsetX", "70")
+    Me.Controls("txtInsetY").Text = GetSetting(REG_APP, "UI", "InsetY", "70")
+    Me.Controls("txtArcTop").Text = GetSetting(REG_APP, "UI", "ArcTop", "30")
+    Me.Controls("txtArcSide").Text = GetSetting(REG_APP, "UI", "ArcSide", "30")
+    Dim oq As Long, iq As Long
+    oq = CLng(Val(GetSetting(REG_APP, "UI", "OuterQty", "0")))
+    If oq < 0 Or oq > 24 Then oq = 0
+    Me.Controls("cboOuterQty").ListIndex = oq
+    Me.Controls("txtOuter").Text = GetSetting(REG_APP, "UI", "OuterMm", "23")
+    iq = CLng(Val(GetSetting(REG_APP, "UI", "InnerQty", "1")))
+    If iq < 0 Or iq > 24 Then iq = 1
+    Me.Controls("cboInnerQty").ListIndex = iq
+    Me.Controls("txtInner").Text = GetSetting(REG_APP, "UI", "InnerMm", "20")
+    Dim sgi As Long
+    sgi = CLng(Val(GetSetting(REG_APP, "UI", "NeoSegCountIdx", "2")))
+    If sgi < 0 Or sgi > 6 Then sgi = 2
+    Me.Controls("cboSegN").ListIndex = sgi
+    Me.Controls("txtFacadeSegMm").Text = GetSetting(REG_APP, "UI", "NeoSegMm", "57;7;8;12")
+    Dim ft As Long
+    ft = CLng(Val(GetSetting(REG_APP, "UI", "FType", "0")))
+    If ft < 0 Then ft = 0
+    If Me.Controls("cboFType").ListCount > 0 Then
+        If ft >= Me.Controls("cboFType").ListCount Then ft = 0
+        Me.Controls("cboFType").ListIndex = ft
+        ApplyPresetFromListIndex ft
+    Else
+        Me.Controls("cboFType").ListIndex = -1
+    End If
+    mPrevFTypeIdx = Me.Controls("cboFType").ListIndex
+    UpdateFacadeParamPanels
+    On Error GoTo 0
+End Sub
+
+Private Function ListIndexToFM(ByVal li As Long) As Long
+    Select Case li
+        Case 0: ListIndexToFM = 1
+        Case 1: ListIndexToFM = 2
+        Case 2: ListIndexToFM = 0
+        Case 3: ListIndexToFM = 3
+        Case Else: ListIndexToFM = 1
+    End Select
+End Function
+
+Private Function FM() As Long
+    On Error Resume Next
+    Dim ix As Long
+    ix = cboFType.ListIndex
+    If ix < 0 Then FM = 1: Exit Function
+    Dim ub As Long, lb As Long
+    ub = UBound(mPresetFM)
+    lb = LBound(mPresetFM)
+    If Err.Number <> 0 Then
+        Err.Clear
+        FM = ListIndexToFM(ix)
+        Exit Function
+    End If
+    If ix <= ub And ix >= lb Then
+        FM = mPresetFM(ix)
+    Else
+        FM = ListIndexToFM(ix)
+    End If
+End Function
+
+Private Function FMToStyleIdx(ByVal fm As Long) As Long
+    Select Case fm
+        Case 0: FMToStyleIdx = 2
+        Case 1: FMToStyleIdx = 0
+        Case 2: FMToStyleIdx = 1
+        Case 3: FMToStyleIdx = 3
+        Case Else: FMToStyleIdx = 0
+    End Select
+End Function
+
+Private Function FMToListIndex(ByVal fm As Long) As Long
+    Select Case fm
+        Case 0: FMToListIndex = 2
+        Case 1: FMToListIndex = 0
+        Case 2: FMToListIndex = 1
+        Case 3: FMToListIndex = 3
+        Case Else: FMToListIndex = 0
+    End Select
+End Function
+
+Private Function FacadeTypeCaption() As String
+    On Error Resume Next
+    If cboFType.ListIndex >= 0 And cboFType.ListCount > cboFType.ListIndex Then
+        FacadeTypeCaption = cboFType.List(cboFType.ListIndex)
+    Else
+        FacadeTypeCaption = FN(FM())
+    End If
+End Function
+
+Private Sub RebuildFacadeTypeCombo()
+    On Error Resume Next
+    Dim p As String, fh As Integer, line As String
+    Dim parts() As String
+    Dim i As Long, n As Long
+    Dim csvCnt As Long
+    Dim csvLines() As String
+    cboFType.Clear
+    csvCnt = 0
+    p = Module1.FacadeTypesCsvPath()
+    If Dir(p) <> "" Then
+        fh = FreeFile
+        Open p For Input As #fh
+        Line Input #fh, line
+        Do While Not EOF(fh)
+            Line Input #fh, line
+            line = Trim$(line)
+            If Len(line) > 0 Then
+                If InStr(line, ";") > 0 Then
+                    parts = Split(line, ";")
+                    If UBound(parts) >= 1 Then
+                        cboFType.AddItem Trim$(parts(0))
+                        ReDim Preserve csvLines(0 To csvCnt)
+                        csvLines(csvCnt) = line
+                        csvCnt = csvCnt + 1
+                    End If
+                End If
+            End If
+        Loop
+        Close #fh
+    End If
+    n = csvCnt
+    If n > 0 Then
+        ReDim mPresetFM(0 To n - 1)
+        ReDim mPresetRows(0 To n - 1)
+        For i = 0 To n - 1
+            parts = Split(csvLines(i), ";")
+            Dim k As Long
+            k = CLng(Val(parts(1)))
+            If k < 0 Or k > 3 Then k = 0
+            mPresetFM(i) = ListIndexToFM(k)
+            mPresetRows(i) = csvLines(i)
+        Next i
+    Else
+        ReDim mPresetFM(0 To 0)
+        ReDim mPresetRows(0 To 0)
+        mPresetFM(0) = 1
+        mPresetRows(0) = vbNullString
+    End If
+    On Error GoTo 0
+End Sub
+
+Private Sub ApplyPresetFromListIndex(ByVal idx As Long)
+    On Error Resume Next
+    If idx < 0 Then Exit Sub
+    If idx > UBound(mPresetRows) Then Exit Sub
+    Dim row As String
+    row = mPresetRows(idx)
+    If Len(row) = 0 Then Exit Sub
+    Dim p() As String
+    Dim oq As Long, iq As Long
+    p = Split(row, ";")
+    If UBound(p) < 13 Then Exit Sub
+    Me.Controls("txtInsetX").Text = p(2)
+    Me.Controls("txtInsetY").Text = p(3)
+    Me.Controls("txtArcTop").Text = p(4)
+    Me.Controls("txtArcSide").Text = p(5)
+    oq = CLng(Val(p(6)))
+    If oq < 0 Or oq > 24 Then oq = 0
+    Me.Controls("cboOuterQty").ListIndex = oq
+    Me.Controls("txtOuter").Text = p(7)
+    iq = CLng(Val(p(8)))
+    If iq < 0 Or iq > 24 Then iq = 1
+    Me.Controls("cboInnerQty").ListIndex = iq
+    Me.Controls("txtInner").Text = p(9)
+    Dim sgi As Long
+    sgi = CLng(Val(p(10)))
+    If sgi < 0 Or sgi > 6 Then sgi = 2
+    Me.Controls("cboSegN").ListIndex = sgi
+    Me.Controls("txtFacadeSegMm").Text = Replace(p(11), "|", ";")
+    Dim bd As Long, onn As Long
+    bd = CLng(Val(p(12)))
+    If bd < 0 Or bd > 2 Then bd = 0
+    onn = CLng(Val(p(13)))
+    If onn < 0 Or onn > 2 Then onn = 0
+    Me.Controls("cboBorder").ListIndex = bd
+    Me.Controls("cboOrn").ListIndex = onn
+    On Error GoTo 0
+End Sub
+
+Private Function BuildFacadePresetCsvLine(ByVal nm As String, ByVal kindIdx As Long) As String
+    Dim seg As String
+    seg = CT("txtFacadeSegMm")
+    seg = Replace$(seg, vbCrLf, ";")
+    seg = Replace$(seg, vbCr, ";")
+    seg = Replace$(seg, vbLf, ";")
+    seg = Replace$(seg, ",", ";")
+    seg = Replace$(seg, ";", "|")
+    BuildFacadePresetCsvLine = nm & ";" & CStr(kindIdx) & ";" & _
+        CT("txtInsetX") & ";" & CT("txtInsetY") & ";" & _
+        CT("txtArcTop") & ";" & CT("txtArcSide") & ";" & _
+        CTQtyCombo("cboOuterQty") & ";" & CT("txtOuter") & ";" & _
+        CTQtyCombo("cboInnerQty") & ";" & CT("txtInner") & ";" & _
+        CStr(Me.Controls("cboSegN").ListIndex) & ";" & seg & ";" & _
+        CStr(Me.Controls("cboBorder").ListIndex) & ";" & CStr(Me.Controls("cboOrn").ListIndex)
+End Function
+
+Public Sub AfterFacadeTypesDeleted()
+    On Error Resume Next
+    Dim prevName As String
+    If cboFType.ListIndex >= 0 Then prevName = cboFType.List(cboFType.ListIndex)
+    RebuildFacadeTypeCombo
+    Dim i As Long, found As Boolean
+    found = False
+    If Len(prevName) > 0 Then
+        For i = 0 To cboFType.ListCount - 1
+            If StrComp(cboFType.List(i), prevName, vbTextCompare) = 0 Then
+                cboFType.ListIndex = i
+                found = True
+                Exit For
+            End If
+        Next i
+    End If
+    If Not found Then
+        If cboFType.ListCount > 0 Then
+            cboFType.ListIndex = 0
+        Else
+            cboFType.ListIndex = -1
+        End If
+    End If
+    mPrevFTypeIdx = cboFType.ListIndex
+    If cboFType.ListIndex >= 0 And cboFType.ListCount > 0 Then ApplyPresetFromListIndex cboFType.ListIndex
+    UpdateFacadeParamPanels
+    UpdatePreview
+    RefreshReadyStatus
+    On Error GoTo 0
+End Sub
+
+Private Sub UpdateFacadeParamPanels()
+    On Error Resume Next
+    Dim neo As Boolean
+    neo = (FM() = 3)
+    Me.Controls("lblSegN").Visible = neo
+    Me.Controls("cboSegN").Visible = neo
+    Me.Controls("lblSegHint").Visible = neo
+    Me.Controls("txtFacadeSegMm").Visible = neo
+    Me.Controls("lbl3DPrev").Visible = neo
+    ' Shell.Explorer.2 (wbFacade3D) в Corel MSForms часто не поддерживает .Visible → 438 — не трогаем.
+    Me.Controls("lblIns").Visible = Not neo
+    Me.Controls("lblArcs").Visible = Not neo
+    Me.Controls("txtInsetX").Visible = Not neo
+    Me.Controls("txtInsetY").Visible = Not neo
+    Me.Controls("txtArcTop").Visible = Not neo
+    Me.Controls("txtArcSide").Visible = Not neo
+    Me.Controls("lblOffCounts").Visible = Not neo
+    Me.Controls("lblOL").Visible = Not neo
+    Me.Controls("lblOS").Visible = Not neo
+    Me.Controls("lblIL").Visible = Not neo
+    Me.Controls("lblIS").Visible = Not neo
+    Me.Controls("cboOuterQty").Visible = Not neo
+    Me.Controls("txtOuter").Visible = Not neo
+    Me.Controls("cboInnerQty").Visible = Not neo
+    Me.Controls("txtInner").Visible = Not neo
+End Sub
+
+Private Sub SaveShapeBuilderSettings()
+    On Error Resume Next
+    SaveSetting REG_APP, "UI", "SheetH", CT("txtSheetH")
+    SaveSetting REG_APP, "UI", "SheetW", CT("txtSheetW")
+    SaveSetting REG_APP, "UI", "Gap", CT("txtGap")
+    SaveSetting REG_APP, "UI", "NestMode", CStr(Me.Controls("cboNestMode").ListIndex)
+    SaveSetting REG_APP, "UI", "Rotate", IIf(Me.Controls("chkRotate").Value, "1", "0")
+    SaveSetting REG_APP, "UI", "Mirror", IIf(Me.Controls("chkMirror").Value, "1", "0")
+    SaveSetting REG_APP, "UI", "Grain", IIf(Me.Controls("chkGrain").Value, "1", "0")
+    SaveSetting REG_APP, "UI", "GuillotineTall", IIf(Me.Controls("chkGuillotineTallRight").Value, "1", "0")
+    SaveSetting REG_APP, "UI", "CncLayers", IIf(Me.Controls("chkCncLayers").Value, "1", "0")
+    SaveSetting REG_APP, "UI", "SheetStock", CT("txtSheetStock")
+    SaveSetting REG_APP, "UI", "PriceSheet", CT("txtPriceSheet")
+    SaveSetting REG_APP, "UI", "PriceM2", CT("txtPriceM2")
+    SaveSetting REG_APP, "UI", "FType", CStr(Me.Controls("cboFType").ListIndex)
+    SaveSetting REG_APP, "UI", "BorderIdx", CStr(Me.Controls("cboBorder").ListIndex)
+    SaveSetting REG_APP, "UI", "OrnIdx", CStr(Me.Controls("cboOrn").ListIndex)
+    SaveSetting REG_APP, "UI", "InsetX", CT("txtInsetX")
+    SaveSetting REG_APP, "UI", "InsetY", CT("txtInsetY")
+    SaveSetting REG_APP, "UI", "ArcTop", CT("txtArcTop")
+    SaveSetting REG_APP, "UI", "ArcSide", CT("txtArcSide")
+    SaveSetting REG_APP, "UI", "NeoSegCountIdx", CStr(Me.Controls("cboSegN").ListIndex)
+    SaveSetting REG_APP, "UI", "NeoSegMm", CT("txtFacadeSegMm")
+    SaveSetting REG_APP, "UI", "OuterQty", CTQtyCombo("cboOuterQty")
+    SaveSetting REG_APP, "UI", "OuterMm", CT("txtOuter")
+    SaveSetting REG_APP, "UI", "InnerQty", CTQtyCombo("cboInnerQty")
+    SaveSetting REG_APP, "UI", "InnerMm", CT("txtInner")
+    On Error GoTo 0
+End Sub
+
+Private Function FacadesSessionPath() As String
+    FacadesSessionPath = Environ$("APPDATA") & "\MebelShapeBuilder\last_facades.csv"
+End Function
+
+Private Sub EnsureFacadesAppFolder()
+    On Error Resume Next
+    MkDir Environ$("APPDATA") & "\MebelShapeBuilder"
+End Sub
+
+Private Sub SaveFacadesSessionSnapshot()
+    On Error Resume Next
+    EnsureFacadesAppFolder
+    Dim fp As String
+    fp = FacadesSessionPath()
+    If mFC = 0 Then
+        If Len(Dir(fp)) > 0 Then Kill fp
+        Exit Sub
+    End If
+    Dim fh As Integer
+    Dim i As Long
+    fh = FreeFile
+    Open fp For Output As #fh
+    Print #fh, "H_mm;W_mm;Qty"
+    For i = 0 To mFC - 1
+        Print #fh, CStr(CLng(mFH(i))) & ";" & CStr(CLng(mFW(i))) & ";" & CStr(mFQ(i))
+    Next i
+    Close #fh
+End Sub
+
+Private Sub LoadFacadesSessionSnapshot()
+    On Error Resume Next
+    Dim fp As String
+    fp = FacadesSessionPath()
+    If Len(Dir(fp)) = 0 Then Exit Sub
+    Dim fh As Integer
+    Dim txt As String
+    fh = FreeFile
+    Open fp For Input As #fh
+    txt = Input$(LOF(fh), fh)
+    Close #fh
+    Call ApplyFacadesFromCsv(txt)
+End Sub
+
+' Тот же формат, что CSV → / ← (H;W;Qty). Возвращает True, если загружена хотя бы одна строка.
+Private Function ApplyFacadesFromCsv(ByVal txt As String) As Boolean
+    On Error GoTo EH
+    Dim lines() As String
+    Dim i As Long
+    Dim line As String
+    Dim sep As String
+    Dim parts() As String
+    Dim nh As Double, nw As Double
+    Dim nq As Long
+    Dim cnt As Long
+    txt = Replace(txt, vbCrLf, vbLf)
+    txt = Replace(txt, vbCr, vbLf)
+    lines = Split(txt, vbLf)
+    cnt = 0
+    For i = 0 To UBound(lines)
+        line = Trim$(lines(i))
+        If Len(line) = 0 Then GoTo NextI
+        If InStr(1, line, ";", vbBinaryCompare) > 0 Then
+            sep = ";"
+        ElseIf InStr(1, line, ",", vbBinaryCompare) > 0 Then
+            sep = ","
+        Else
+            GoTo NextI
+        End If
+        If InStr(1, LCase$(line), "h_mm", vbTextCompare) > 0 Then GoTo NextI
+        parts = Split(line, sep)
+        If UBound(parts) < 2 Then GoTo NextI
+        nh = Val(Trim$(parts(0)))
+        nw = Val(Trim$(parts(1)))
+        nq = CLng(Val(Trim$(parts(2))))
+        If nh <= 0 Or nw <= 0 Then GoTo NextI
+        If nq < 1 Then nq = 1
+        If nq > 500 Then nq = 500
+        cnt = cnt + 1
+NextI:
+    Next i
+    If cnt = 0 Then ApplyFacadesFromCsv = False: Exit Function
+    mFC = 0
+    ReDim mFH(0 To cnt - 1)
+    ReDim mFW(0 To cnt - 1)
+    ReDim mFQ(0 To cnt - 1)
+    cnt = 0
+    For i = 0 To UBound(lines)
+        line = Trim$(lines(i))
+        If Len(line) = 0 Then GoTo NextJ
+        If InStr(1, line, ";", vbBinaryCompare) > 0 Then
+            sep = ";"
+        ElseIf InStr(1, line, ",", vbBinaryCompare) > 0 Then
+            sep = ","
+        Else
+            GoTo NextJ
+        End If
+        If InStr(1, LCase$(line), "h_mm", vbTextCompare) > 0 Then GoTo NextJ
+        parts = Split(line, sep)
+        If UBound(parts) < 2 Then GoTo NextJ
+        nh = Val(Trim$(parts(0)))
+        nw = Val(Trim$(parts(1)))
+        nq = CLng(Val(Trim$(parts(2))))
+        If nh <= 0 Or nw <= 0 Then GoTo NextJ
+        If nq < 1 Then nq = 1
+        If nq > 500 Then nq = 500
+        mFH(cnt) = nh
+        mFW(cnt) = nw
+        mFQ(cnt) = nq
+        cnt = cnt + 1
+NextJ:
+    Next i
+    mFC = cnt
+    RefreshList
+    UpdatePreview
+    ApplyFacadesFromCsv = True
+    Exit Function
+EH:
+    ApplyFacadesFromCsv = False
+End Function
+
+Private Sub ML(n As String, c As String, l As Long, t As Long, w As Long, h As Long, fg As Long, Optional bg As Long = 0, Optional oq As Boolean = False, Optional al As Long = 1, Optional parent As Variant)
+    On Error Resume Next
+    Dim cont As Object
+    If IsMissing(parent) Then Set cont = Me Else Set cont = parent
+    Dim x As MSForms.Label: Set x = cont.Controls.Add("Forms.Label.1", n, True)
     x.Left = l: x.Top = t: x.Width = w: x.Height = h: x.ForeColor = fg: x.Caption = c: x.TextAlign = al
-    If oq Then x.BackStyle = 1: x.BackColor = bg: x.WordWrap = True Else x.BackStyle = 0
+    ' WordWrap у Label в Corel MSForms иногда даёт 438 — только фон для многострочных
+    If oq Then x.BackStyle = 1: x.BackColor = bg Else x.BackStyle = 0
 End Sub
 
-Private Sub MT(n As String, d As String, l As Long, t As Long, w As Long, h As Long, bg As Long, fg As Long)
+Private Sub MT(n As String, d As String, l As Long, t As Long, w As Long, h As Long, bg As Long, fg As Long, Optional parent As Variant)
     On Error Resume Next
-    Dim x As MSForms.TextBox: Set x = Me.Controls.Add("Forms.TextBox.1", n, True)
+    Dim cont As Object
+    If IsMissing(parent) Then Set cont = Me Else Set cont = parent
+    Dim x As MSForms.TextBox: Set x = cont.Controls.Add("Forms.TextBox.1", n, True)
     x.Left = l: x.Top = t: x.Width = w: x.Height = h: x.BackColor = bg: x.ForeColor = fg: x.Text = d
-    x.SpecialEffect = 0: x.BorderStyle = 0
+    x.SpecialEffect = 0
+    x.BorderStyle = 0
 End Sub
 
 Private Function CT(n As String) As String
     On Error Resume Next: CT = Trim$(Me.Controls(n).Text)
+End Function
+
+Private Function CTQtyCombo(ByVal n As String) As String
+    On Error Resume Next
+    Dim c As MSForms.ComboBox
+    Set c = Me.Controls(n)
+    If c.ListIndex >= 0 And c.ListIndex < c.ListCount Then
+        CTQtyCombo = c.List(c.ListIndex)
+    Else
+        CTQtyCombo = Trim$(c.Text)
+    End If
+    If Len(CTQtyCombo) = 0 Then CTQtyCombo = "0"
+End Function
+
+Private Function OffsetQtyLong(ByVal ctlName As String, ByVal defVal As Long) As Long
+    Dim v As Long
+    v = CLng(Fix(Abs(TN(CTQtyCombo(ctlName), defVal))))
+    If v < 0 Then v = 0
+    If v > 24 Then v = 24
+    OffsetQtyLong = v
 End Function
 
 Private Function TN(ByVal s As String, ByVal d As Double) As Double
@@ -173,14 +856,57 @@ Private Function CV(n As String) As String
     If Len(CV) = 0 And c.ListIndex >= 0 Then CV = Trim$(c.List(c.ListIndex))
 End Function
 
-Private Function FM() As Long
-    On Error Resume Next
-    Select Case cboFType.ListIndex
-        Case 0: FM = 1
-        Case 1: FM = 2
-        Case 2: FM = 0
-        Case Else: FM = 1
-    End Select
+Private Function ParseNeoSegmentsToModule(ByRef errMsg As String) As Boolean
+    On Error GoTo EH
+    Dim nWant As Long
+    Dim raw As String, parts() As String
+    Dim i As Long, cnt As Long, t As String
+    Dim vals(1 To 8) As Double
+
+    errMsg = vbNullString
+    ParseNeoSegmentsToModule = False
+
+    nWant = CLng(Me.Controls("cboSegN").ListIndex) + 2
+    If nWant < 2 Or nWant > 8 Then
+        errMsg = "Выберите число сегментов от 2 до 8."
+        Exit Function
+    End If
+
+    raw = CT("txtFacadeSegMm")
+    raw = Replace$(Replace$(Replace$(raw, vbCrLf, ";"), vbCr, ";"), vbLf, ";")
+    raw = Replace$(raw, ",", ";")
+    Do While InStr(raw, ";;") > 0
+        raw = Replace$(raw, ";;", ";")
+    Loop
+
+    parts = Split(raw, ";")
+    cnt = 0
+    For i = LBound(parts) To UBound(parts)
+        t = Trim$(parts(i))
+        If Len(t) > 0 Then
+            cnt = cnt + 1
+            If cnt > 8 Then
+                errMsg = "Слишком много значений (максимум 8)."
+                Exit Function
+            End If
+            vals(cnt) = TN(t, -1#)
+            If vals(cnt) <= 0# Then
+                errMsg = "Сегмент " & CStr(cnt) & ": укажите положительное число, мм."
+                Exit Function
+            End If
+        End If
+    Next i
+
+    If cnt <> nWant Then
+        errMsg = "Для выбранного числа сегментов введите ровно " & CStr(nWant) & " положительных значений мм."
+        Exit Function
+    End If
+
+    Module1.AssignNeoProfileSegments vals, nWant
+    ParseNeoSegmentsToModule = True
+    Exit Function
+EH:
+    errMsg = "Разбор сегментов: " & Err.Description
 End Function
 
 Private Function FN(fv As Long) As String
@@ -188,29 +914,43 @@ Private Function FN(fv As Long) As String
         Case 0: FN = "Прямой"
         Case 1: FN = "Классика 1"
         Case 2: FN = "Классика 2"
+        Case 3: FN = "Неоклассика 1"
         Case Else: FN = "?"
     End Select
 End Function
 
 Private Function FT(fv As Long) As String
-    If fv = 0 Then FT = "Прямой" Else FT = "Классика"
+    If fv = 0 Then FT = "Прямой" Else FT = "Классика / неоклассика"
 End Function
 
 Private Sub SetStatus(msg As String, Optional isErr As Boolean = False)
     On Error Resume Next
     Me.Controls("lblStatus").Caption = msg
-    If isErr Then Me.Controls("lblStatus").ForeColor = RGB(255, 100, 100) _
-    Else Me.Controls("lblStatus").ForeColor = RGB(110, 190, 140)
+    If isErr Then Me.Controls("lblStatus").ForeColor = RGB(195, 95, 90) _
+    Else Me.Controls("lblStatus").ForeColor = RGB(94, 107, 115)
+End Sub
+
+' Строка «Готово» с версией и активным типом фасада (чтобы было видно: неоклассика = отдельная отрисовка)
+Private Sub RefreshReadyStatus()
+    On Error Resume Next
+    SetStatus "Готово · v" & Module1.MEBEL_MACRO_VERSION() & " · SB " & SB_CODE_REV & " · " & FacadeTypeCaption()
 End Sub
 
 Private Sub RefreshList()
-    On Error Resume Next
-    Dim lb As MSForms.ListBox: Set lb = Me.Controls("lstFacades")
+    On Error GoTo RL_Err
+    Dim lb As MSForms.ListBox
+    Set lb = Me.Controls("lstFacades")
     lb.Clear
     Dim i As Long
     For i = 0 To mFC - 1
-        lb.AddItem CStr(i + 1) & ".  " & CStr(CLng(mFH(i))) & " x " & CStr(CLng(mFW(i))) & "  -  " & CStr(mFQ(i)) & " шт"
+        lb.AddItem CStr(i + 1) & ".  H " & CStr(CLng(mFH(i))) & " x W " & CStr(CLng(mFW(i))) & "  |  " & CStr(mFQ(i)) & " шт"
     Next i
+    If lb.ListCount > 0 Then lb.ListIndex = lb.ListCount - 1
+    Me.Controls("lblFacList").Caption = "Список фасадов (" & CStr(mFC) & " поз.):"
+    Me.Repaint
+    Exit Sub
+RL_Err:
+    MsgBox "Список: " & Err.Description, vbExclamation
 End Sub
 
 Private Sub UpdatePreview()
@@ -227,10 +967,268 @@ Private Sub UpdatePreview()
     shArea = (shW / 1000) * (shH / 1000)
     If shArea > 0 Then pct = (totalArea / shArea) * 100 Else pct = 0
 
-    Dim fv As Long: fv = FM()
-    Me.Controls("lblPreview").Caption = FN(fv) & "   " & CStr(mFC) & " размер(ов),  " & CStr(totalQ) & " шт" & _
+    Me.Controls("lblPreview").Caption = FacadeTypeCaption() & "   " & CStr(mFC) & " размер(ов),  " & CStr(totalQ) & " шт" & _
         vbCrLf & "Лист: " & CStr(CLng(shW)) & "x" & CStr(CLng(shH)) & " мм"
     Me.Controls("lblArea").Caption = "S=" & Format$(totalArea, "0.00") & "м²  Исп." & Format$(pct, "0") & "%"
+    Refresh3DPreview
+End Sub
+
+Private Function Compute3dSig() As String
+    On Error GoTo EH
+    If mFC <= 0 Then
+        Compute3dSig = "0"
+        Exit Function
+    End If
+    Dim ix As Long, st As Long
+    ix = Me.Controls("lstFacades").ListIndex
+    If ix < 0 Then ix = mFC - 1
+    If ix > mFC - 1 Then ix = mFC - 1
+    st = FMToStyleIdx(FM())
+    Compute3dSig = CStr(mFC) & ";" & CStr(ix) & ";" & CStr(CLng(mFH(ix))) & ";" & CStr(CLng(mFW(ix))) & ";" & CStr(st) & ";" & CStr(cboFType.ListIndex) & ";" & CT("txtFacadeSegMm")
+    Exit Function
+EH:
+    Compute3dSig = "0"
+End Function
+
+Private Function Get3dDocument(ByVal wb As Object) As Object
+    On Error Resume Next
+    Dim doc As Object
+    Set doc = wb.Document
+    If Not doc Is Nothing Then
+        If wb.readyState = 4 Then
+            Set Get3dDocument = doc
+            Exit Function
+        End If
+    End If
+    wb.Navigate "about:blank"
+    Dim w As Long
+    w = 0
+    Do While wb.Busy And w < 120
+        DoEvents
+        w = w + 1
+    Loop
+    w = 0
+    Do While wb.readyState <> 4 And w < 80
+        DoEvents
+        w = w + 1
+    Loop
+    Set Get3dDocument = wb.Document
+End Function
+
+Private Function WbFacade3dOrNothing() As Object
+    On Error Resume Next
+    Set WbFacade3dOrNothing = Me.Controls("wbFacade3D")
+End Function
+
+Private Sub Refresh3DPreview()
+    On Error GoTo EH
+    Dim wb As Object
+    Set wb = WbFacade3dOrNothing()
+    If wb Is Nothing Then Exit Sub
+
+    Dim sig As String
+    sig = Compute3dSig()
+    If sig = mLast3DSig Then Exit Sub
+    mLast3DSig = sig
+
+    Dim html As String
+    Dim ix As Long
+    Dim st As Long
+    If mFC <= 0 Then
+        html = Build3dHtmlEmpty()
+    Else
+        ix = Me.Controls("lstFacades").ListIndex
+        If ix < 0 Then ix = mFC - 1
+        If ix > mFC - 1 Then ix = mFC - 1
+        html = Build3dHtmlFacade(mFH(ix), mFW(ix), FMToStyleIdx(FM()))
+    End If
+
+    Dim doc As Object
+    Set doc = Get3dDocument(wb)
+    If doc Is Nothing Then GoTo EH
+    On Error Resume Next
+    Call doc.open("text/html", "replace")
+    doc.Write html
+    doc.Close
+    Exit Sub
+EH:
+    mLast3DSig = vbNullString
+End Sub
+
+Private Function Build3dHtmlEmpty() As String
+    Build3dHtmlEmpty = "<!DOCTYPE html><html><head><meta http-equiv=""X-UA-Compatible"" content=""IE=edge""/>"
+    Build3dHtmlEmpty = Build3dHtmlEmpty & "<style>html,body{height:100%;margin:0;overflow:hidden;background:#E5E9EC;color:#5E6B73;font:8px 'Segoe UI',sans-serif;}"
+    Build3dHtmlEmpty = Build3dHtmlEmpty & "#box{display:flex;align-items:center;justify-content:center;height:100%;padding:4px;text-align:center;}"
+    Build3dHtmlEmpty = Build3dHtmlEmpty & "</style></head><body><div id=""box"">Нет фасадов — «+» в списке</div></body></html>"
+End Function
+
+Private Function FNStyleName(ByVal listIdx As Long) As String
+    Select Case listIdx
+        Case 0: FNStyleName = "Классика 1"
+        Case 1: FNStyleName = "Классика 2"
+        Case 2: FNStyleName = "Прямой"
+        Case 3: FNStyleName = "Неоклассика 1"
+        Case Else: FNStyleName = "Прямой"
+    End Select
+End Function
+
+' Первые 4 числа из txtFacadeSegMm (как на чертеже сечения); иначе False — берём 57/7/8/12
+Private Function NeoParseFourSegMm(ByRef s1 As Double, ByRef s2 As Double, ByRef s3 As Double, ByRef s4 As Double, ByRef patOut As Double) As Boolean
+    On Error GoTo EH
+    Dim raw As String, parts() As String
+    Dim vals(1 To 8) As Double
+    Dim i As Long, cnt As Long, t As String
+    NeoParseFourSegMm = False
+    patOut = 0#
+    raw = Trim$(CT("txtFacadeSegMm"))
+    raw = Replace$(Replace$(Replace$(raw, vbCrLf, ";"), vbCr, ";"), vbLf, ";")
+    raw = Replace$(raw, ",", ";")
+    Do While InStr(raw, ";;") > 0
+        raw = Replace$(raw, ";;", ";")
+    Loop
+    parts = Split(raw, ";")
+    cnt = 0
+    For i = LBound(parts) To UBound(parts)
+        t = Trim$(parts(i))
+        If Len(t) > 0 Then
+            cnt = cnt + 1
+            If cnt > 8 Then Exit For
+            vals(cnt) = TN(t, -1#)
+            If vals(cnt) <= 0# Then GoTo EH
+        End If
+    Next i
+    If cnt < 4 Then Exit Function
+    s1 = vals(1): s2 = vals(2): s3 = vals(3): s4 = vals(4)
+    patOut = s1 + s2 + s3 + s4
+    NeoParseFourSegMm = (patOut > 0.01)
+    Exit Function
+EH:
+    NeoParseFourSegMm = False
+End Function
+
+Private Function NeoFmtMm(ByVal v As Double) As String
+    On Error Resume Next
+    If Abs(v - CLng(v)) < 0.06 Then
+        NeoFmtMm = CStr(CLng(v))
+    Else
+        NeoFmtMm = Replace(Format$(v, "0.0"), ",", ".")
+    End If
+End Function
+
+' SVG: сечение штура с узлами как на фрезе (4 сегмента), размеры + выносные линии
+Private Function BuildNeoProfileSectionHtml() As String
+    Dim s1 As Double, s2 As Double, s3 As Double, s4 As Double
+    Dim pat As Double
+    Dim j1 As Double, j2 As Double, j3 As Double, j4 As Double
+    Dim xMid As Double
+    Dim d As String
+    Dim t As String
+    Dim xs As String
+    If Not NeoParseFourSegMm(s1, s2, s3, s4, pat) Then
+        s1 = 57#: s2 = 7#: s3 = 8#: s4 = 12#
+        pat = s1 + s2 + s3 + s4
+    End If
+    j1 = s1
+    j2 = s1 + s2
+    j3 = s1 + s2 + s3
+    j4 = pat
+    If s2 > 0.0001 Then
+        xMid = s1 + (3# / 7#) * s2
+    Else
+        xMid = j1
+    End If
+    d = "M0,4 L" & NeoFmtMm(j1) & ",4 L" & NeoFmtMm(xMid) & ",7 L" & NeoFmtMm(j2) & ",5.2 L" & NeoFmtMm(j3) & ",8 L" & NeoFmtMm(j4) & ",4 L" & NeoFmtMm(j4) & ",12 L0,12 Z"
+    xs = Replace(Format$(pat, "0.###"), ",", ".")
+    t = "<svg xmlns=""http://www.w3.org/2000/svg"" width=""100%"" height=""100%"" viewBox=""0 0 " & xs & " 40"" preserveAspectRatio=""xMidYMid meet"" style=""background:#E8EBED;border:1px solid #969FA5;border-radius:2px;"">"
+    t = t & "<defs><linearGradient id=""ng"" x1=""0%"" y1=""0%"" x2=""0%"" y2=""100%""><stop offset=""0%"" stop-color=""#D6DCE3""/><stop offset=""100%"" stop-color=""#9AA9B3""/></linearGradient></defs>"
+    t = t & "<path d=""" & d & """ fill=""url(#ng)"" stroke=""#141414"" stroke-width=""0.28""/>"
+    t = t & "<g stroke=""#6B7A85"" stroke-width=""0.1"" fill=""none"" opacity=""0.85"">"
+    t = t & "<line x1=""0"" y1=""12"" x2=""0"" y2=""25"" stroke-dasharray=""0.4 0.4""/>"
+    t = t & "<line x1=""" & NeoFmtMm(j1) & """ y1=""12"" x2=""" & NeoFmtMm(j1) & """ y2=""25"" stroke-dasharray=""0.4 0.4""/>"
+    t = t & "<line x1=""" & NeoFmtMm(j2) & """ y1=""12"" x2=""" & NeoFmtMm(j2) & """ y2=""25"" stroke-dasharray=""0.4 0.4""/>"
+    t = t & "<line x1=""" & NeoFmtMm(j3) & """ y1=""12"" x2=""" & NeoFmtMm(j3) & """ y2=""25"" stroke-dasharray=""0.4 0.4""/>"
+    t = t & "<line x1=""" & NeoFmtMm(j4) & """ y1=""12"" x2=""" & NeoFmtMm(j4) & """ y2=""25"" stroke-dasharray=""0.4 0.4""/>"
+    t = t & "</g>"
+    t = t & "<g stroke=""#1f2a33"" stroke-width=""0.14"" fill=""#1f2a33"" font-size=""3.1"" font-family=""Segoe UI,sans-serif"">"
+    t = t & "<line x1=""0"" y1=""26"" x2=""" & NeoFmtMm(pat) & """ y2=""26""/>"
+    t = t & "<line x1=""0"" y1=""24.8"" x2=""0"" y2=""27.2""/><line x1=""" & NeoFmtMm(j1) & """ y1=""24.8"" x2=""" & NeoFmtMm(j1) & """ y2=""27.2""/>"
+    t = t & "<line x1=""" & NeoFmtMm(j2) & """ y1=""24.8"" x2=""" & NeoFmtMm(j2) & """ y2=""27.2""/><line x1=""" & NeoFmtMm(j3) & """ y1=""24.8"" x2=""" & NeoFmtMm(j3) & """ y2=""27.2""/>"
+    t = t & "<line x1=""" & NeoFmtMm(j4) & """ y1=""24.8"" x2=""" & NeoFmtMm(j4) & """ y2=""27.2""/>"
+    t = t & "<text x=""" & NeoFmtMm(s1 / 2#) & """ y=""33.5"" text-anchor=""middle"">" & NeoFmtMm(s1) & "</text>"
+    t = t & "<text x=""" & NeoFmtMm(s1 + s2 / 2#) & """ y=""33.5"" text-anchor=""middle"">" & NeoFmtMm(s2) & "</text>"
+    t = t & "<text x=""" & NeoFmtMm(s1 + s2 + s3 / 2#) & """ y=""33.5"" text-anchor=""middle"">" & NeoFmtMm(s3) & "</text>"
+    t = t & "<text x=""" & NeoFmtMm(s1 + s2 + s3 + s4 / 2#) & """ y=""33.5"" text-anchor=""middle"">" & NeoFmtMm(s4) & "</text>"
+    t = t & "</g>"
+    t = t & "<text x=""" & NeoFmtMm(pat / 2#) & """ y=""4.5"" text-anchor=""middle"" fill=""#3D4A54"" font-size=""2.5"" font-family=""Segoe UI,sans-serif"">сечение верхнего штура</text>"
+    t = t & "<text x=""" & NeoFmtMm(pat / 2#) & """ y=""8.2"" text-anchor=""middle"" fill=""#5E6B73"" font-size=""2.15"" font-family=""Segoe UI,sans-serif"">Σ " & NeoFmtMm(pat) & " мм · " & NeoFmtMm(s1) & " + " & NeoFmtMm(s2) & " + " & NeoFmtMm(s3) & " + " & NeoFmtMm(s4) & "</text>"
+    t = t & "</svg>"
+    BuildNeoProfileSectionHtml = t
+End Function
+
+Private Function Build3dHtmlFacade(ByVal hMm As Double, ByVal wMm As Double, ByVal styleIdx As Long) As String
+    Dim mx As Double
+    If hMm > wMm Then mx = hMm Else mx = wMm
+    If mx < 1 Then mx = 1
+    Dim avail As Double
+    avail = CDbl(PREVIEW_3D_PX) - 14#
+    If avail < 18 Then avail = 18
+    Dim k As Double
+    k = avail / mx
+    Dim pxH As Long, pxW As Long
+    pxH = CLng(k * hMm)
+    pxW = CLng(k * wMm)
+    If pxH < 12 Then pxH = 12
+    If pxW < 12 Then pxW = 12
+    If pxH > CLng(avail) - 1 Then pxH = CLng(avail) - 1
+    If pxW > 220 Then pxW = 220
+    Dim s As String
+    Dim isClassic As Boolean
+    Dim isCl2 As Boolean
+    Dim isNeo As Boolean
+    isNeo = (styleIdx = 3)
+    isClassic = (styleIdx < 2) And Not isNeo
+    isCl2 = (styleIdx = 1)
+    s = "<!DOCTYPE html><html><head><meta http-equiv=""X-UA-Compatible"" content=""IE=edge""/>"
+    s = s & "<style>html,body{height:100%;margin:0;overflow:hidden;background:#E5E9EC;color:#323D43;font:8px 'Segoe UI',sans-serif;}"
+    s = s & "#box{display:flex;flex-direction:column;height:100%;box-sizing:border-box;}"
+    s = s & "#cap{padding:2px 4px 0;text-align:center;line-height:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#5E6B73;}"
+    s = s & "#stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;perspective:220px;padding:0 2px 2px;}"
+    s = s & ".door{position:relative;background:linear-gradient(145deg,#B2B9BD,#5E6B73);"
+    s = s & "box-shadow:0 3px 10px rgba(50,61,67,.35);transform:rotateX(10deg) rotateY(-16deg);"
+    s = s & "border:1px solid #969FA5;box-sizing:border-box;}"
+    s = s & ".door.cls{border-radius:2px;box-shadow:0 3px 10px rgba(50,61,67,.35),inset 0 0 0 1px #CED4D9,inset 0 0 0 3px #323D43;}"
+    s = s & ".inset{position:absolute;background:rgba(0,0,0,.12);border:1px solid rgba(255,255,255,.08);}"
+    s = s & ".arc{position:absolute;left:12%;right:12%;border:1px solid rgba(200,175,150,.35);border-bottom:none;opacity:.88;}"
+    s = s & "#neoSec{flex:1;min-height:0;padding:2px;display:flex;align-items:center;justify-content:center;}"
+    s = s & "</style></head><body><div id=""box"">"
+    s = s & "<div id=""cap"">" & FacadeTypeCaption() & " · H" & CStr(CLng(hMm)) & "×W" & CStr(CLng(wMm)) & " mm</div>"
+    If isNeo Then
+        s = s & "<div id=""neoSec"">" & BuildNeoProfileSectionHtml() & "</div></div></body></html>"
+        Build3dHtmlFacade = s
+        Exit Function
+    End If
+    s = s & "<div id=""stage""><div class=""door"
+    If isClassic Then s = s & " cls"
+    s = s & """ style=""width:" & CStr(pxW) & "px;height:" & CStr(pxH) & "px;"">"
+    If isClassic Then
+        If isCl2 Then
+            s = s & "<div class=""arc"" style=""top:10%;height:20%""></div>"
+            s = s & "<div class=""inset"" style=""top:32%;left:11%;right:11%;bottom:16%""></div>"
+        Else
+            s = s & "<div class=""arc"" style=""top:8%;height:18%""></div>"
+            s = s & "<div class=""inset"" style=""top:30%;left:10%;right:10%;bottom:14%""></div>"
+        End If
+    Else
+        s = s & "<div class=""inset"" style=""top:12%;left:10%;right:10%;bottom:12%""></div>"
+    End If
+    s = s & "</div></div></div></body></html>"
+    Build3dHtmlFacade = s
+End Function
+
+Private Sub lstFacades_Click()
+    On Error Resume Next
+    If mInitializing Then Exit Sub
+    Refresh3DPreview
 End Sub
 
 Private Sub btnAdd_Click()
@@ -248,7 +1246,8 @@ Private Sub btnAdd_Click()
     End If
     mFH(mFC) = h: mFW(mFC) = w: mFQ(mFC) = q
     mFC = mFC + 1
-    RefreshList: UpdatePreview
+    RefreshList
+    UpdatePreview
     SetStatus "Добавлено: " & CStr(CLng(h)) & "x" & CStr(CLng(w)) & " x" & CStr(q)
 End Sub
 
@@ -267,21 +1266,36 @@ Private Sub btnDel_Click()
         ReDim Preserve mFW(0 To mFC - 1)
         ReDim Preserve mFQ(0 To mFC - 1)
     End If
-    RefreshList: UpdatePreview: SetStatus "Удалено"
+    RefreshList
+    UpdatePreview
+    SetStatus "Удалено"
 End Sub
 
 Private Sub btnClr_Click()
     mFC = 0
     ReDim mFH(0 To 0): ReDim mFW(0 To 0): ReDim mFQ(0 To 0)
-    RefreshList: UpdatePreview: SetStatus "Список очищен"
+    RefreshList
+    UpdatePreview
+    SetStatus "Список очищен"
 End Sub
 
+Private Sub btnSwapSheet_Click()
+    Dim t As String
+    If mInitializing Then Exit Sub
+    On Error Resume Next
+    t = CT("txtSheetH")
+    Me.Controls("txtSheetH").Text = CT("txtSheetW")
+    Me.Controls("txtSheetW").Text = t
+    On Error GoTo 0
+    UpdatePreview
+    SetStatus "Лист: В и Ш поменяны местами"
+End Sub
 
 Private Sub btnCreate_Click()
     BuildFacade False
 End Sub
 
-Private Sub btnCreateClose_Click()
+Private Sub btnCrCl_Click()
     BuildFacade True
 End Sub
 
@@ -289,7 +1303,159 @@ Private Sub btnClose_Click()
     Unload Me
 End Sub
 
+Private Sub btnCsvExport_Click()
+    On Error GoTo EH
+    If mFC = 0 Then
+        MsgBox "Список фасадов пуст — нечего сохранять.", vbInformation, "CSV"
+        Exit Sub
+    End If
+    Dim fp As String
+    fp = Module1.ShowFileDialogAPI(True, Environ("USERPROFILE") & "\Desktop\", "facades.csv")
+    If Len(fp) = 0 Then Exit Sub
+    Dim fh As Integer
+    fh = FreeFile
+    Open fp For Output As #fh
+    Print #fh, "H_mm;W_mm;Qty"
+    Dim i As Long
+    For i = 0 To mFC - 1
+        Print #fh, CStr(CLng(mFH(i))) & ";" & CStr(CLng(mFW(i))) & ";" & CStr(mFQ(i))
+    Next i
+    Close #fh
+    SetStatus "CSV сохранён: " & fp
+    Exit Sub
+EH:
+    MsgBox "Экспорт CSV: " & Err.Description, vbExclamation
+End Sub
+
+Private Sub btnCsvImport_Click()
+    On Error GoTo EH
+    Dim fp As String
+    fp = Module1.ShowFileDialogAPI(False, Environ("USERPROFILE") & "\Desktop\", "facades.csv")
+    If Len(fp) = 0 Then Exit Sub
+    Dim fh As Integer
+    Dim txt As String
+    fh = FreeFile
+    Open fp For Input As #fh
+    txt = Input$(LOF(fh), fh)
+    Close #fh
+    If Not ApplyFacadesFromCsv(txt) Then
+        MsgBox "В файле нет строк с тремя числами (H;W;Qty).", vbExclamation, "CSV"
+        Exit Sub
+    End If
+    SetStatus "Загружено из CSV: " & fp & " (" & CStr(mFC) & " поз.)"
+    Exit Sub
+EH:
+    MsgBox "Импорт CSV: " & Err.Description, vbExclamation
+End Sub
+
+Private Sub btnExportDxf_Click()
+    Module1.ExportCncDxf
+End Sub
+
+Private Sub cboNestMode_Change()
+    If mInitializing Then Exit Sub
+    On Error Resume Next
+    Dim cur As Long
+    cur = Me.Controls("cboNestMode").ListIndex
+    If cur < 0 Then cur = 0
+    If cur > 2 Then cur = 2
+    If cur = 1 And mPrevNestMode <> 1 Then Me.Controls("chkGuillotineTallRight").Value = False
+    mPrevNestMode = cur
+    On Error GoTo 0
+    UpdatePreview
+End Sub
+
 Private Sub cboFType_Change()
+    If mInitializing Then Exit Sub
+    On Error Resume Next
+    Dim cur As Long
+    cur = Me.Controls("cboFType").ListIndex
+    mPrevFTypeIdx = cur
+    If cur >= 0 Then ApplyPresetFromListIndex cur
+    On Error GoTo 0
+    UpdateFacadeParamPanels
+    UpdatePreview
+    RefreshReadyStatus
+End Sub
+
+Private Sub cboOuterQty_Change()
+    If mInitializing Then Exit Sub
+    On Error Resume Next
+    UpdatePreview
+End Sub
+
+Private Sub cboInnerQty_Change()
+    If mInitializing Then Exit Sub
+    On Error Resume Next
+    UpdatePreview
+End Sub
+
+Private Sub btnFacadeTypeSave_Click()
+    On Error GoTo EH
+    Dim nm As String
+    nm = InputBox("Имя типа (как в списке «Тип формы»):", "Сохранить тип фасада", "")
+    nm = Trim$(nm)
+    If Len(nm) = 0 Then Exit Sub
+    Dim kindIdx As Long
+    If cboFType.ListIndex >= 0 And cboFType.ListIndex <= UBound(mPresetFM) Then
+        kindIdx = FMToListIndex(mPresetFM(cboFType.ListIndex))
+    Else
+        kindIdx = FMToListIndex(FM())
+    End If
+    Module1.UpsertFacadeTypeRow BuildFacadePresetCsvLine(nm, kindIdx)
+    RebuildFacadeTypeCombo
+    Dim i As Long
+    For i = 0 To cboFType.ListCount - 1
+        If StrComp(cboFType.List(i), nm, vbTextCompare) = 0 Then
+            cboFType.ListIndex = i
+            Exit For
+        End If
+    Next i
+    mPrevFTypeIdx = cboFType.ListIndex
+    ApplyPresetFromListIndex cboFType.ListIndex
+    UpdateFacadeParamPanels
+    UpdatePreview
+    RefreshReadyStatus
+    SetStatus "Тип сохранён: " & nm
+    Exit Sub
+EH:
+    MsgBox "Сохранить тип: " & Err.Description, vbExclamation
+End Sub
+
+Private Sub btnFacadeTypeMgr_Click()
+    On Error GoTo EH
+    UserForm2.Show vbModal
+    Exit Sub
+EH:
+    MsgBox "Не удалось открыть окно «Типы фасадов». Выполните deploy_direct.ps1 (нужен UserForm2 в GlobalMacros)." & vbCrLf & Err.Description & " (" & CStr(Err.Number) & ")", vbExclamation, "Типы фасадов"
+End Sub
+
+Private Sub btnFacadeTypeDel_Click()
+    On Error GoTo EH
+    If mInitializing Then Exit Sub
+    If cboFType.ListCount = 0 Then
+        MsgBox "Нет сохранённых типов в базе:" & vbCrLf & Module1.FacadeTypesCsvPath() & vbCrLf & "Сначала сохраните тип кнопкой «+ сохранить тип».", vbInformation, "Удаление типа"
+        Exit Sub
+    End If
+    If cboFType.ListIndex < 0 Then
+        MsgBox "Выберите тип в списке «Тип формы», затем нажмите «Удалить выбранный тип».", vbInformation, "Удаление типа"
+        Exit Sub
+    End If
+    Dim nm As String
+    nm = Trim$(cboFType.List(cboFType.ListIndex))
+    If Len(nm) = 0 Then Exit Sub
+    If MsgBox("Удалить сохранённый тип """ & nm & """ из базы?", vbYesNo Or vbQuestion, "Удаление типа") <> vbYes Then Exit Sub
+    Module1.DeleteFacadeTypeByName nm
+    AfterFacadeTypesDeleted
+    SetStatus "Тип удалён: " & nm
+    Exit Sub
+EH:
+    MsgBox "Удалить тип: " & Err.Description, vbExclamation
+End Sub
+
+Private Sub txtFacadeSegMm_Change()
+    If mInitializing Then Exit Sub
+    On Error Resume Next
     UpdatePreview
 End Sub
 
@@ -299,23 +1465,107 @@ Private Sub BuildFacade(ByVal closeAfter As Boolean)
         Exit Sub
     End If
 
-    RunCutPRO _
-        TN(CT("txtSheetW"), 2800), _
-        TN(CT("txtSheetH"), 2070), _
-        TN(CT("txtGap"), 4), _
-        mFC, mFW, mFH, mFQ
+    Dim ii As Long
+    For ii = 0 To mFC - 1
+        If mFW(ii) <= 0 Or mFH(ii) <= 0 Or mFQ(ii) <= 0 Then
+            MsgBox "Позиция " & CStr(ii + 1) & ": H, W и количество должны быть больше 0.", vbExclamation
+            Exit Sub
+        End If
+    Next ii
+
+    Dim nm As Long
+    nm = 0
+    On Error Resume Next
+    nm = Me.Controls("cboNestMode").ListIndex
+    On Error GoTo 0
+
+    Dim shW As Double, shH As Double
+    Dim allowRot As Boolean, allowMir As Boolean, grainL As Boolean
+    On Error Resume Next
+    allowRot = CBool(Me.Controls("chkRotate").Value)
+    allowMir = CBool(Me.Controls("chkMirror").Value)
+    grainL = CBool(Me.Controls("chkGrain").Value)
+    On Error GoTo 0
+
+    Dim st As String
+    st = CT("txtSheetStock")
+
+    On Error Resume Next
+    Module1.mCncLayers = CBool(Me.Controls("chkCncLayers").Value)
+    Module1.mGuillotineTallRightStrip = CBool(Me.Controls("chkGuillotineTallRight").Value)
+    On Error GoTo 0
+
+    Module1.mFormFaceKind = FM()
+
+    Module1.SetDrawStyleFromForm CV("cboBorder"), CV("cboOrn")
+    If FM() = 3 Then
+        Dim neoErr As String
+        If Not ParseNeoSegmentsToModule(neoErr) Then
+            MsgBox neoErr, vbExclamation, FacadeTypeCaption()
+            Exit Sub
+        End If
+        Module1.SetPanelGeometry 0#, 0#, 0#, 0#, 0, 0#, 0, 0#
+    Else
+        Module1.SetPanelGeometry TN(CT("txtInsetX"), 70), TN(CT("txtInsetY"), 70), _
+            TN(CT("txtArcTop"), 0), TN(CT("txtArcSide"), 0), _
+            OffsetQtyLong("cboOuterQty", 0), TN(CT("txtOuter"), 23), _
+            OffsetQtyLong("cboInnerQty", 1), TN(CT("txtInner"), 20)
+    End If
+
+    Dim gapDef As Double
+    Dim gapUse As Double
+    If nm = 0 Or nm = 2 Then
+        shW = TN(CT("txtSheetW"), 2070)
+        shH = TN(CT("txtSheetH"), 2800)
+        gapDef = 4
+    Else
+        shW = TN(CT("txtSheetW"), 2070)
+        shH = TN(CT("txtSheetH"), 2800)
+        gapDef = 25
+    End If
+    gapUse = TN(CT("txtGap"), gapDef)
+    If shW <= 0 Or shH <= 0 Then
+        MsgBox "Укажите положительные размеры листа (В и Ш), мм.", vbExclamation
+        Exit Sub
+    End If
+    If gapUse < 0 Then
+        MsgBox "Отступ (зазор) не может быть отрицательным.", vbExclamation
+        Exit Sub
+    End If
+    Module1.RunPlacement nm, shW, shH, gapUse, mFC, mFW, mFH, mFQ, allowRot, allowMir, grainL, st
 
     Dim totalQ As Long, i As Long
+    Dim totalAreaM2 As Double
+    Dim ps As Double, pm2 As Double, cst As Double
+    totalQ = 0
+    totalAreaM2 = 0
     For i = 0 To mFC - 1
         totalQ = totalQ + mFQ(i)
+        totalAreaM2 = totalAreaM2 + (mFW(i) * mFH(i) * mFQ(i)) / 1000000#
     Next i
 
+    ps = TN(CT("txtPriceSheet"), 0)
+    pm2 = TN(CT("txtPriceM2"), 0)
+    cst = mSheets * ps + totalAreaM2 * pm2
+    mCostTotal = cst
+
     Dim stat As String
+    Dim shWa As Double, shHa As Double
+    Dim sheetMm2 As Double, utilPct As Double
     stat = "Листов: " & mSheets & _
            " | Размещено: " & mPlaced & "/" & totalQ & _
            " | Не влезло: " & mSkipped
-
+    shWa = TN(CT("txtSheetW"), 2070)
+    shHa = TN(CT("txtSheetH"), 2800)
+    sheetMm2 = shWa * shHa * mSheets
+    If sheetMm2 > 0 And mSheets > 0 Then
+        utilPct = 100# * mUsedArea / sheetMm2
+        If utilPct > 100# Then utilPct = 100#
+        stat = stat & " | Утилизация " & Format$(utilPct, "0") & "%"
+    End If
+    If Module1.mCncLayers Then stat = stat & " | ЧПУ: CUT/TEXT"
     Me.Controls("lblStat").Caption = stat
+    Me.Controls("lblCostResult").Caption = "Стоимость: " & Format$(cst, "0.00") & " руб  |  S деталей " & Format$(totalAreaM2, "0.00") & " м²"
 
     If closeAfter Then Unload Me
 End Sub

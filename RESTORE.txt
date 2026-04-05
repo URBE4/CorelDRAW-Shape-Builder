@@ -1,0 +1,52 @@
+Восстановление макроса после вылета Corel или отката GMS
+=====================================================
+
+Почему «возвращается» к старому виду после вылета:
+  GlobalMacros в памяти теряется при падении Corel. На диск попадает только то,
+  что вы сохранили в VBA (Файл — Сохранить GlobalMacros). Если не сохраняли —
+  при следующем запуске подгружается последняя сохранённая копия (часто старая,
+  без вкладок и с коротким заголовком «Shape Builder»).
+
+После deploy_direct.ps1:
+  В CorelDRAW у VBProject через COM часто нет Save() — в консоли будет «Save() failed»:
+  это нормально. Всё равно сразу Alt+F11 → Файл → Сохранить GlobalMacros (иначе при вылете
+  подтянется старый .gms с диска).
+  Скрипт дополнительно пишет: vba_backup\deploy_<дата-время>\ (копия .bas + UserForm1_Code.txt)
+  и vba_export_last\ (экспорт из VBE: Module1.bas, UserForm1.frm + при форме может быть .frx).
+
+Порядок этапов разработки: см. WORK_ORDER.txt в этой папке.
+
+Источник правды — файлы в этой папке:
+  CorelDRAW_Furniture_Facades_Macro.bas  (Module1)
+  UserForm1_Code.txt
+
+В заголовке формы: Shape Builder Pro v0.1.0  [2026] — SB_CODE_REV из UserForm1_Code.txt
+В Immediate: ?Module1.MEBEL_MACRO_VERSION()  -> 0.1.0 (релиз 2026, git tag v0.1.0)
+
+ВАЖНО — почему «ничего не менялось»:
+  В списке макросов был Module2.RunModernShapeBuilder — это СТАРЫЙ дубликат.
+  Запускали его — открывалась старая форма. Актуальный код только в Module1.
+  deploy_direct.ps1 теперь удаляет Module2. Запускайте: Module1.RunModernShapeBuilder
+  (или RunWardenShapeBuilder в Module1 — тот же вход).
+
+Шаги:
+1) Запустите CorelDRAW, откройте любой документ.
+2) Сервис / Параметры — безопасность VBA — включите доступ к объектной модели VBA (доверие к проекту).
+3) Один раз нажмите Alt+F11 (открыть редактор VBA), при необходимости закройте его.
+4) Запустите deploy_direct.ps1 из этой папки (PowerShell).
+5) В редакторе VBA: Файл — Сохранить GlobalMacros (или закройте VBA с сохранением).
+
+Если скрипт пишет VBE unavailable — повторите шаги 2–3 и снова deploy.
+
+Пустой список в «Сервис — Макросы — Запустить», проект GlobalMacros:
+  Значит в GlobalMacros нет кода (или не сохранён .gms). Макросы появятся только после
+  заливки Module1 (там Public Sub RunModernShapeBuilder и др.).
+  1) Закройте окно «Запустить макрос». 2) Откройте папку проекта с deploy_direct.ps1.
+  3) Запустите deploy_direct.ps1 в PowerShell (ПКМ — «Выполнить с помощью PowerShell»
+     или: cd в папку, затем .\deploy_direct.ps1). Должно быть: Module1 OK, UserForm1 OK,
+     DIRECT DEPLOY OK. 4) Alt+F11 → Файл — Сохранить GlobalMacros. 5) Снова Сервис —
+     Макросы — в списке выберите Module1.RunModernShapeBuilder (или ShapeBuilderAbout).
+  Если deploy пишет ошибку — пришлите текст из консоли. Скрипт сначала цепляется к
+  уже открытому Corel через CorelDRAW.Application (без номера версии), затем к .27…21.
+
+Резервная копия: периодически экспортируйте Module1 и UserForm1 из VBA в файлы .bas / форму вручную.

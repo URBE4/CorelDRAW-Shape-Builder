@@ -1,0 +1,31 @@
+Порядок работ по проекту Shape Builder (идём сверху вниз)
+============================================================
+
+1. Стабильность и обновление
+   - Актуальный релиз: 0.1.0 (2026), git tag v0.1.0; см. RELEASE_0_1_0_2026.txt.
+   - Источник правды: .bas + UserForm1_Code.txt в папке проекта.
+   - deploy_direct.ps1 → затем ОБЯЗАТЕЛЬНО VBA: Сохранить GlobalMacros (COM Save в Corel часто недоступен).
+   - Копии после deploy: vba_backup\, vba_export_last\ — см. RESTORE.txt.
+   - Запуск только Module1.RunModernShapeBuilder (Module2 удаляется скриптом).
+   - Проверка без формы: Module1.ShapeBuilderAbout
+
+2. Раскрой (Module1)
+   - Алгоритмы: nesting / Guillotine / строки.
+   - Лист В×Ш, зазор, поворот, волокно, запас листов.
+
+3. ЧПУ
+   - Галочка CUT/TEXT, СОЗДАТЬ, затем DXF.
+
+4. Интерфейс (UserForm1)
+   - Вкладки, цвета, подсказки, список, 3D-превью.
+   - Corel MSForms (438): без BackColor у CheckBox/Page; без BackColor у ComboBox;
+     без BorderColor у ListBox; без TakeFocusOnClick, Font.Bold на кнопках;
+     без ControlTipText; без Label.WordWrap; ComboBox/текст — по возможности стандартные.
+
+5. Данные
+   - CSV, last_facades.csv, реестр настроек.
+
+6. Документация
+   - RESTORE.txt, OPERATORS_RU.txt при необходимости.
+
+Текущий фокус: после согласования — пункт 2 (раскрой) или 3 (ЧПУ).

@@ -1,0 +1,105 @@
+Option Explicit
+
+Private Sub UserForm_Initialize()
+    On Error Resume Next
+    Dim needBuild As Boolean
+    needBuild = (Me.Controls.Count = 0)
+    If Not needBuild Then
+        Dim t As Object
+        Set t = Nothing
+        Set t = Me.Controls("lstTypes")
+        If t Is Nothing Then needBuild = True
+    End If
+    If needBuild Then
+        Dim ri As Long
+        For ri = Me.Controls.Count - 1 To 0 Step -1
+            Me.Controls.Remove ri
+        Next ri
+        Me.Caption = "Типы фасадов — список и удаление"
+        Me.Width = 320
+        Me.Height = 240
+        Me.StartUpPosition = 2
+        Dim y As Long
+        y = 6
+        Dim lb As MSForms.ListBox
+        Set lb = Me.Controls.Add("Forms.ListBox.1", "lstTypes", True)
+        With lb
+            .Left = 8
+            .Top = y
+            .Width = 296
+            .Height = 130
+        End With
+        y = y + 136
+        Dim b1 As MSForms.CommandButton
+        Set b1 = Me.Controls.Add("Forms.CommandButton.1", "btnDelType", True)
+        With b1
+            .Left = 8
+            .Top = y
+            .Width = 110
+            .Height = 22
+            .Caption = "Удалить"
+        End With
+        Dim b2 As MSForms.CommandButton
+        Set b2 = Me.Controls.Add("Forms.CommandButton.1", "btnCloseTypes", True)
+        With b2
+            .Left = 180
+            .Top = y
+            .Width = 124
+            .Height = 22
+            .Caption = "Закрыть"
+        End With
+    End If
+    LoadList
+End Sub
+
+Private Sub LoadList()
+    On Error Resume Next
+    Dim lb As MSForms.ListBox
+    Set lb = Me.Controls("lstTypes")
+    If lb Is Nothing Then Exit Sub
+    lb.Clear
+    Dim p As String, fh As Integer, line As String
+    p = Module1.FacadeTypesCsvPath()
+    If Dir(p) = "" Then Exit Sub
+    fh = FreeFile
+    Open p For Input As #fh
+    Line Input #fh, line
+    Do While Not EOF(fh)
+        Line Input #fh, line
+        line = Trim$(line)
+        If Len(line) > 0 Then
+            Dim parts() As String
+            parts = Split(line, ";")
+            If UBound(parts) >= 0 Then lb.AddItem Trim$(parts(0))
+        End If
+    Loop
+    Close #fh
+End Sub
+
+Private Sub btnDelType_Click()
+    On Error GoTo EH
+    Dim lb As MSForms.ListBox
+    Set lb = Me.Controls("lstTypes")
+    If lb Is Nothing Then Exit Sub
+    If lb.ListCount = 0 Then
+        MsgBox "В базе нет сохранённых типов.", vbInformation, "Типы фасадов"
+        Exit Sub
+    End If
+    If lb.ListIndex < 0 Then
+        MsgBox "Выберите тип в списке.", vbInformation, "Типы фасадов"
+        Exit Sub
+    End If
+    Dim nm As String
+    nm = Trim$(lb.List(lb.ListIndex))
+    If MsgBox("Удалить тип """ & nm & """ из базы?", vbYesNo Or vbQuestion, "Типы фасадов") <> vbYes Then Exit Sub
+    Module1.DeleteFacadeTypeByName nm
+    LoadList
+    UserForm1.AfterFacadeTypesDeleted
+    Exit Sub
+EH:
+    MsgBox "Удалить тип: " & Err.Description, vbExclamation, "Типы фасадов"
+End Sub
+
+Private Sub btnCloseTypes_Click()
+    Unload Me
+End Sub

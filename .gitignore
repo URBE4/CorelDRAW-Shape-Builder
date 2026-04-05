@@ -6,3 +6,5 @@ deploy_force_vbe.ps1
 dump_module1_top.ps1
 redeploy_clean_form.ps1
 run_deploy_force.ps1
+vba_backup/
+vba_export_last/
