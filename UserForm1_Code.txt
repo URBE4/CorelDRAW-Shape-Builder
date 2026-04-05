@@ -32,9 +32,9 @@ Private mLast3DSig As String
 Private mPresetFM() As Long
 Private mPresetRows() As String
 ' Метка сборки: после deploy_direct.ps1 заголовок формы должен содержать эту строку (иначе в GMS старый код).
-Private Const SB_CODE_REV As String = "2026-contour-bar"
+Private Const SB_CODE_REV As String = "2026-verify"
 ' Вкладка «Основное» ~500px по вертикали; MultiPage ниже обрезает низ (+/−/C и список).
-Private Const MP_MAIN_HEIGHT As Long = 508
+Private Const MP_MAIN_HEIGHT As Long = 518
 Private Const PREVIEW_3D_PX As Long = 53
 Private Const REG_APP As String = "MebelShapeBuilder"
 ' Shell.Explorer.2: на части установок даёт 438 при открытии формы — тогда поставьте False
@@ -58,7 +58,7 @@ Private Sub UserForm_Initialize()
     Me.BorderStyle = 1
     Me.StartUpPosition = 2
     Me.Width = 268
-    Me.Height = 648
+    Me.Height = 658
     Me.Font.Name = "Segoe UI"
     Me.Font.Size = 8
     On Error GoTo 0
@@ -147,6 +147,8 @@ Private Sub UserForm_Initialize()
     y = y + 18
 
     ML "lblParams", "Параметры фасада", p, y, 140, 10, LBL, 0, False, 1, pg0
+    y = y + 10
+    ML "lblUiBuildStamp", "0.1.4 контур одной строкой — не видите? deploy из папки с .bas", p, y, formW, 10, MUTED, 0, False, 1, pg0
     y = y + 10
     ML "lblSegN", "Сегментов", p, y, 48, 10, LBL, 0, False, 1, pg0
     Dim cbSeg As MSForms.ComboBox
@@ -737,6 +739,9 @@ Private Sub UpdateFacadeParamPanels()
     Me.Controls("lblContourIcoOff").Visible = Not neo
     Me.Controls("txtContourMm").Visible = Not neo
     Me.Controls("lblContourMmUnit").Visible = Not neo
+    On Error Resume Next
+    Me.Controls("lblUiBuildStamp").Visible = True
+    On Error GoTo 0
 End Sub
 
 Private Sub SaveShapeBuilderSettings()

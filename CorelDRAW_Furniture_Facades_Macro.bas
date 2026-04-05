@@ -82,7 +82,7 @@ Private Const OFN_HIDEREADONLY As Long = &H4
 
 ' Версия линейки: Function (не Const) — в Corel после AddFromString Const иногда «теряется», даёт Variable not defined
 Public Function MEBEL_MACRO_VERSION() As String
-    MEBEL_MACRO_VERSION = "0.1.3"
+    MEBEL_MACRO_VERSION = "0.1.4"
 End Function
 
 Public Sub RunModernShapeBuilder()

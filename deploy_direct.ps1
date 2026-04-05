@@ -96,7 +96,7 @@ try {
     try { $null = $app.VBE } catch {}
     Start-Sleep -Seconds 1
 
-    $vbe = Wait-Vbe $app 25000
+    $vbe = Wait-Vbe $app 45000
     if (-not $vbe) {
         throw 'VBE unavailable. In Corel: trust VBA project access; open a document; press Alt+F11 once, close editor, retry deploy_direct.ps1'
     }

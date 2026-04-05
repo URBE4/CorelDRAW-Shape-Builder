@@ -7,3 +7,4 @@ redeploy_clean_form.ps1
 run_deploy_force.ps1
 vba_backup/
 vba_export_last/
+deploy_last_log.txt
