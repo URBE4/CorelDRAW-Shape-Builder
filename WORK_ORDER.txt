@@ -2,7 +2,7 @@
 ============================================================
 
 1. Стабильность и обновление
-   - Актуальный релиз: 0.1.0 (2026), git tag v0.1.0; см. RELEASE_0_1_0_2026.txt.
+   - Актуальный релиз: 0.1.3 (2026), git tag v0.1.3; см. RELEASE_0_1_3_2026.txt, RELEASE_0_1_0_2026.txt.
    - Источник правды: .bas + UserForm1_Code.txt в папке проекта.
    - deploy_direct.ps1 → затем ОБЯЗАТЕЛЬНО VBA: Сохранить GlobalMacros (COM Save в Corel часто недоступен).
    - Копии после deploy: vba_backup\, vba_export_last\ — см. RESTORE.txt.
@@ -17,6 +17,7 @@
    - Галочка CUT/TEXT, СОЗДАТЬ, затем DXF.
 
 4. Интерфейс (UserForm1)
+   - Панель «Контур» в одну строку (как в Corel) — 0.1.3.
    - Вкладки, цвета, подсказки, список, 3D-превью.
    - Corel MSForms (438): без BackColor у CheckBox/Page; без BackColor у ComboBox;
      без BorderColor у ListBox; без TakeFocusOnClick, Font.Bold на кнопках;

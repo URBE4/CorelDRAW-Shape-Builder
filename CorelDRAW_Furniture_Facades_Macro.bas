@@ -82,7 +82,7 @@ Private Const OFN_HIDEREADONLY As Long = &H4
 
 ' Версия линейки: Function (не Const) — в Corel после AddFromString Const иногда «теряется», даёт Variable not defined
 Public Function MEBEL_MACRO_VERSION() As String
-    MEBEL_MACRO_VERSION = "0.1.0"
+    MEBEL_MACRO_VERSION = "0.1.3"
 End Function
 
 Public Sub RunModernShapeBuilder()
@@ -110,10 +110,11 @@ End Sub
 Public Sub ShapeBuilderAbout()
     MsgBox "Shape Builder Pro" & vbCrLf & _
            "Версия линейки: " & MEBEL_MACRO_VERSION() & vbCrLf & vbCrLf & _
+           "Если в заголовке формы старая версия (например v2.2.0) — заливка не применилась." & vbCrLf & _
+           "Запустите deploy_direct.ps1 из папки проекта (или ЗАПУСК_ДЕПЛОЯ.bat), затем в VBA: Сохранить GlobalMacros." & vbCrLf & vbCrLf & _
            "Типы фасадов — в CSV (кнопки «+ сохранить тип», «Удалить выбранный тип», «Типы…»)." & vbCrLf & _
            "Неоклассика: превью — сечение шпунта (мм), поле сегментов на «Основное»." & vbCrLf & vbCrLf & _
-           "Основной запуск: Module1.RunModernShapeBuilder" & vbCrLf & _
-           "После deploy: в редакторе VBA — Файл, Сохранить GlobalMacros.", _
+           "Основной запуск: Module1.RunModernShapeBuilder", _
            vbInformation, "Shape Builder"
 End Sub
 

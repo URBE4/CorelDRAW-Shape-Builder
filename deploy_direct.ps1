@@ -1,5 +1,31 @@
 $ErrorActionPreference = 'Stop'
 $basePath = $PSScriptRoot
+if ([string]::IsNullOrEmpty($basePath)) {
+    $basePath = Split-Path -Parent $MyInvocation.MyCommand.Path
+}
+if ([string]::IsNullOrEmpty($basePath)) {
+    $basePath = (Get-Location).Path
+}
+
+Write-Host '=== deploy_direct.ps1 (Shape Builder) ==='
+Write-Host "Project folder: $basePath"
+$basCheck = Join-Path $basePath 'CorelDRAW_Furniture_Facades_Macro.bas'
+$ufCheck = Join-Path $basePath 'UserForm1_Code.txt'
+if (-not (Test-Path -LiteralPath $basCheck)) { throw "File not found: $basCheck - run script from the project folder with .bas file." }
+if (-not (Test-Path -LiteralPath $ufCheck)) { throw "File not found: $ufCheck" }
+try {
+    $vLine = (Select-String -LiteralPath $basCheck -Pattern 'MEBEL_MACRO_VERSION\s*=\s*"' | Select-Object -First 1).Line.Trim()
+    Write-Host "Source file version: $vLine"
+} catch {
+    Write-Host 'Source file version: (could not read)'
+}
+try {
+    $sLine = (Select-String -LiteralPath $ufCheck -Pattern 'SB_CODE_REV\s+As\s+String\s*=\s*"' | Select-Object -First 1).Line.Trim()
+    Write-Host "Source form SB: $sLine"
+} catch {
+    Write-Host 'Source form SB: (could not read)'
+}
+Write-Host ''
 
 function Get-CorelApplication {
     # Сначала — уже запущенный Corel: без суффикса версии (ROT), иначе часто не находит 2024/2023.

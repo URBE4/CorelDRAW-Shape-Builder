@@ -15,8 +15,9 @@ Private WithEvents btnSwapSheet As MSForms.CommandButton
 Private WithEvents btnFacadeTypeSave As MSForms.CommandButton
 Private WithEvents btnFacadeTypeMgr As MSForms.CommandButton
 Private WithEvents btnFacadeTypeDel As MSForms.CommandButton
-Private WithEvents cboOuterQty As MSForms.ComboBox
-Private WithEvents cboInnerQty As MSForms.ComboBox
+Private WithEvents cboContourQty As MSForms.ComboBox
+Private cboOuterQty As MSForms.ComboBox
+Private cboInnerQty As MSForms.ComboBox
 
 Private mFH() As Double
 Private mFW() As Double
@@ -31,7 +32,7 @@ Private mLast3DSig As String
 Private mPresetFM() As Long
 Private mPresetRows() As String
 ' Метка сборки: после deploy_direct.ps1 заголовок формы должен содержать эту строку (иначе в GMS старый код).
-Private Const SB_CODE_REV As String = "2026"
+Private Const SB_CODE_REV As String = "2026-contour-bar"
 ' Вкладка «Основное» ~500px по вертикали; MultiPage ниже обрезает низ (+/−/C и список).
 Private Const MP_MAIN_HEIGHT As Long = 508
 Private Const PREVIEW_3D_PX As Long = 53
@@ -82,6 +83,7 @@ Private Sub UserForm_Initialize()
     MUTED = C4
 
     Dim p As Long, formW As Long, hw As Long, rx As Long, y As Long
+    Dim qj As Long
     Dim mp As MSForms.MultiPage
     Dim pg0 As Object, pg1 As Object, pg2 As Object
     p = 4: formW = 248: hw = 120: rx = 128: y = 2
@@ -171,28 +173,53 @@ Private Sub UserForm_Initialize()
     MT "txtArcTop", "30", p + 46, y, 34, 15, INP, FGD, pg0
     MT "txtArcSide", "30", p + 84, y, 34, 15, INP, FGD, pg0
     y = y + 16
-    ML "lblOffCounts", "Отступы: число (0–24) и шаг, мм", p, y, formW, 9, MUTED, 0, False, 1, pg0
-    y = y + 9
-    ML "lblOL", "Внеш.", p, y + 1, 28, 10, LBL, 0, False, 1, pg0
+    ML "lblContourBlock", "Контур (как в Corel)", p, y, formW, 9, MUTED, 0, False, 1, pg0
+    y = y + 10
+    ' Одна строка: направления | шаги | смещение — ширина formW
+    Dim optCen As MSForms.OptionButton
+    Dim optCi As MSForms.OptionButton
+    Dim optCo As MSForms.OptionButton
+    Set optCen = pg0.Controls.Add("Forms.OptionButton.1", "optContourCenter", True)
+    With optCen: .Left = p: .Top = y: .Width = 36: .Height = 18: .Caption = "Центр": .GroupName = "ContourDir": .Value = False: End With
+    Set optCi = pg0.Controls.Add("Forms.OptionButton.1", "optContourInner", True)
+    With optCi: .Left = p + 38: .Top = y: .Width = 36: .Height = 18: .Caption = "Внутр.": .GroupName = "ContourDir": .Value = True: End With
+    Set optCo = pg0.Controls.Add("Forms.OptionButton.1", "optContourOuter", True)
+    With optCo: .Left = p + 76: .Top = y: .Width = 38: .Height = 18: .Caption = "Наружн.": .GroupName = "ContourDir": .Value = False: End With
+    On Error Resume Next
+    optCen.Font.Size = 7: optCi.Font.Size = 7: optCo.Font.Size = 7
+    On Error GoTo 0
+    ML "lblContourSep1", "|", p + 116, y + 1, 6, 14, C4, 0, False, 2, pg0
+    ML "lblContourIcoSteps", ChrW(8801), p + 124, y + 1, 10, 12, LBL, 0, False, 2, pg0
+    Set cboContourQty = pg0.Controls.Add("Forms.ComboBox.1", "cboContourQty", True)
+    With cboContourQty: .Left = p + 136: .Top = y: .Width = 28: .Height = 16: .Style = 2: .BackColor = INP: .ForeColor = FGD: End With
+    For qj = 0 To 24
+        cboContourQty.AddItem CStr(qj)
+    Next qj
+    cboContourQty.ListIndex = 1
+    ML "lblContourSep2", "|", p + 166, y + 1, 6, 14, C4, 0, False, 2, pg0
+    ML "lblContourIcoOff", ChrW(8596), p + 174, y + 1, 10, 12, LBL, 0, False, 2, pg0
+    MT "txtContourMm", "20", p + 186, y, 34, 16, INP, FGD, pg0
+    ML "lblContourMmUnit", "мм", p + 222, y + 1, 18, 10, LBL, 0, False, 1, pg0
+    y = y + 20
+    ' Совместимость с Module1 / CSV: скрытые поля (синхронизируются из блока «Контур»)
     Set cboOuterQty = pg0.Controls.Add("Forms.ComboBox.1", "cboOuterQty", True)
-    With cboOuterQty: .Left = p + 30: .Top = y: .Width = 28: .Height = 15: .Style = 2: .BackColor = INP: .ForeColor = FGD: End With
-    Dim qj As Long
+    With cboOuterQty: .Left = -200: .Top = 0: .Width = 28: .Height = 15: .Style = 2: .BackColor = INP: .ForeColor = FGD: .Visible = False: End With
     For qj = 0 To 24
         cboOuterQty.AddItem CStr(qj)
     Next qj
     cboOuterQty.ListIndex = 0
-    ML "lblOS", "×", p + 60, y + 1, 8, 10, LBL, 0, False, 1, pg0
-    MT "txtOuter", "23", p + 70, y, 32, 15, INP, FGD, pg0
-    ML "lblIL", "Внутр.", p + 106, y + 1, 32, 10, LBL, 0, False, 1, pg0
     Set cboInnerQty = pg0.Controls.Add("Forms.ComboBox.1", "cboInnerQty", True)
-    With cboInnerQty: .Left = p + 140: .Top = y: .Width = 28: .Height = 15: .Style = 2: .BackColor = INP: .ForeColor = FGD: End With
+    With cboInnerQty: .Left = -200: .Top = 0: .Width = 28: .Height = 15: .Style = 2: .BackColor = INP: .ForeColor = FGD: .Visible = False: End With
     For qj = 0 To 24
         cboInnerQty.AddItem CStr(qj)
     Next qj
     cboInnerQty.ListIndex = 1
-    ML "lblIS", "×", p + 170, y + 1, 8, 10, LBL, 0, False, 1, pg0
-    MT "txtInner", "20", p + 180, y, 32, 15, INP, FGD, pg0
-    y = y + 16
+    MT "txtOuter", "23", -200, 0, 32, 15, INP, FGD, pg0
+    MT "txtInner", "20", -200, 0, 32, 15, INP, FGD, pg0
+    On Error Resume Next
+    pg0.Controls("txtOuter").Visible = False
+    pg0.Controls("txtInner").Visible = False
+    On Error GoTo 0
     ML "lblBL", "Обводка", p, y, 44, 10, LBL, 0, False, 1, pg0
     y = y + 10
     Dim cbB As MSForms.ComboBox
@@ -406,6 +433,7 @@ Private Sub LoadShapeBuilderSettings()
     If iq < 0 Or iq > 24 Then iq = 1
     Me.Controls("cboInnerQty").ListIndex = iq
     Me.Controls("txtInner").Text = GetSetting(REG_APP, "UI", "InnerMm", "20")
+    SyncLegacyToContourUi
     Dim sgi As Long
     sgi = CLng(Val(GetSetting(REG_APP, "UI", "NeoSegCountIdx", "2")))
     If sgi < 0 Or sgi > 6 Then sgi = 2
@@ -424,6 +452,62 @@ Private Sub LoadShapeBuilderSettings()
     mPrevFTypeIdx = Me.Controls("cboFType").ListIndex
     UpdateFacadeParamPanels
     On Error GoTo 0
+End Sub
+
+Private Sub ApplyContourUiToLegacy()
+    On Error Resume Next
+    Dim steps As Long
+    steps = Me.Controls("cboContourQty").ListIndex
+    If steps < 0 Then steps = 0
+    If steps > 24 Then steps = 24
+    Dim mm As String
+    mm = CT("txtContourMm")
+    If Me.Controls("optContourCenter").Value Then
+        Me.Controls("cboOuterQty").ListIndex = steps
+        Me.Controls("txtOuter").Text = mm
+        Me.Controls("cboInnerQty").ListIndex = steps
+        Me.Controls("txtInner").Text = mm
+    ElseIf Me.Controls("optContourOuter").Value Then
+        Me.Controls("cboOuterQty").ListIndex = steps
+        Me.Controls("txtOuter").Text = mm
+        Me.Controls("cboInnerQty").ListIndex = 0
+    Else
+        Me.Controls("cboInnerQty").ListIndex = steps
+        Me.Controls("txtInner").Text = mm
+        Me.Controls("cboOuterQty").ListIndex = 0
+    End If
+End Sub
+
+Private Sub SyncLegacyToContourUi()
+    On Error Resume Next
+    Dim oq As Long, iq As Long
+    Dim dMm As Double
+    oq = CLng(Val(CTQtyCombo("cboOuterQty")))
+    iq = CLng(Val(CTQtyCombo("cboInnerQty")))
+    If oq < 0 Then oq = 0
+    If iq < 0 Then iq = 0
+    dMm = Abs(TN(CT("txtOuter"), 0) - TN(CT("txtInner"), 0))
+    If oq > 0 And iq > 0 And oq = iq And dMm < 0.02 Then
+        Me.Controls("optContourCenter").Value = True
+        Me.Controls("cboContourQty").ListIndex = oq
+        Me.Controls("txtContourMm").Text = CT("txtOuter")
+    ElseIf oq > 0 And iq = 0 Then
+        Me.Controls("optContourOuter").Value = True
+        Me.Controls("cboContourQty").ListIndex = oq
+        If Len(Trim$(Me.Controls("txtOuter").Text)) > 0 Then Me.Controls("txtContourMm").Text = CT("txtOuter")
+    ElseIf iq > 0 And oq = 0 Then
+        Me.Controls("optContourInner").Value = True
+        Me.Controls("cboContourQty").ListIndex = iq
+        If Len(Trim$(Me.Controls("txtInner").Text)) > 0 Then Me.Controls("txtContourMm").Text = CT("txtInner")
+    ElseIf oq > 0 And iq > 0 Then
+        Me.Controls("optContourOuter").Value = True
+        Me.Controls("cboContourQty").ListIndex = oq
+        Me.Controls("txtContourMm").Text = CT("txtOuter")
+    Else
+        Me.Controls("optContourInner").Value = True
+        Me.Controls("cboContourQty").ListIndex = 0
+        Me.Controls("txtContourMm").Text = CT("txtInner")
+    End If
 End Sub
 
 Private Function ListIndexToFM(ByVal li As Long) As Long
@@ -572,10 +656,13 @@ Private Sub ApplyPresetFromListIndex(ByVal idx As Long)
     If onn < 0 Or onn > 2 Then onn = 0
     Me.Controls("cboBorder").ListIndex = bd
     Me.Controls("cboOrn").ListIndex = onn
+    SyncLegacyToContourUi
     On Error GoTo 0
 End Sub
 
 Private Function BuildFacadePresetCsvLine(ByVal nm As String, ByVal kindIdx As Long) As String
+    On Error Resume Next
+    ApplyContourUiToLegacy
     Dim seg As String
     seg = CT("txtFacadeSegMm")
     seg = Replace$(seg, vbCrLf, ";")
@@ -639,19 +726,22 @@ Private Sub UpdateFacadeParamPanels()
     Me.Controls("txtInsetY").Visible = Not neo
     Me.Controls("txtArcTop").Visible = Not neo
     Me.Controls("txtArcSide").Visible = Not neo
-    Me.Controls("lblOffCounts").Visible = Not neo
-    Me.Controls("lblOL").Visible = Not neo
-    Me.Controls("lblOS").Visible = Not neo
-    Me.Controls("lblIL").Visible = Not neo
-    Me.Controls("lblIS").Visible = Not neo
-    Me.Controls("cboOuterQty").Visible = Not neo
-    Me.Controls("txtOuter").Visible = Not neo
-    Me.Controls("cboInnerQty").Visible = Not neo
-    Me.Controls("txtInner").Visible = Not neo
+    Me.Controls("lblContourBlock").Visible = Not neo
+    Me.Controls("optContourCenter").Visible = Not neo
+    Me.Controls("optContourInner").Visible = Not neo
+    Me.Controls("optContourOuter").Visible = Not neo
+    Me.Controls("lblContourSep1").Visible = Not neo
+    Me.Controls("lblContourIcoSteps").Visible = Not neo
+    Me.Controls("cboContourQty").Visible = Not neo
+    Me.Controls("lblContourSep2").Visible = Not neo
+    Me.Controls("lblContourIcoOff").Visible = Not neo
+    Me.Controls("txtContourMm").Visible = Not neo
+    Me.Controls("lblContourMmUnit").Visible = Not neo
 End Sub
 
 Private Sub SaveShapeBuilderSettings()
     On Error Resume Next
+    ApplyContourUiToLegacy
     SaveSetting REG_APP, "UI", "SheetH", CT("txtSheetH")
     SaveSetting REG_APP, "UI", "SheetW", CT("txtSheetW")
     SaveSetting REG_APP, "UI", "Gap", CT("txtGap")
@@ -1378,15 +1468,55 @@ Private Sub cboFType_Change()
     RefreshReadyStatus
 End Sub
 
-Private Sub cboOuterQty_Change()
+Private Sub cboContourQty_Change()
     If mInitializing Then Exit Sub
     On Error Resume Next
+    ApplyContourUiToLegacy
     UpdatePreview
 End Sub
 
-Private Sub cboInnerQty_Change()
+Private Sub txtContourMm_Change()
     If mInitializing Then Exit Sub
     On Error Resume Next
+    ApplyContourUiToLegacy
+    UpdatePreview
+End Sub
+
+Private Sub optContourCenter_Click()
+    If mInitializing Then Exit Sub
+    On Error Resume Next
+    If Not Me.Controls("optContourCenter").Value Then Exit Sub
+    If Me.Controls("cboOuterQty").ListIndex > 0 Then
+        Me.Controls("cboContourQty").ListIndex = Me.Controls("cboOuterQty").ListIndex
+    Else
+        Me.Controls("cboContourQty").ListIndex = Me.Controls("cboInnerQty").ListIndex
+    End If
+    If Len(Trim$(Me.Controls("txtOuter").Text)) > 0 Then
+        Me.Controls("txtContourMm").Text = CT("txtOuter")
+    Else
+        Me.Controls("txtContourMm").Text = CT("txtInner")
+    End If
+    ApplyContourUiToLegacy
+    UpdatePreview
+End Sub
+
+Private Sub optContourInner_Click()
+    If mInitializing Then Exit Sub
+    On Error Resume Next
+    If Not Me.Controls("optContourInner").Value Then Exit Sub
+    Me.Controls("cboContourQty").ListIndex = Me.Controls("cboInnerQty").ListIndex
+    Me.Controls("txtContourMm").Text = CT("txtInner")
+    ApplyContourUiToLegacy
+    UpdatePreview
+End Sub
+
+Private Sub optContourOuter_Click()
+    If mInitializing Then Exit Sub
+    On Error Resume Next
+    If Not Me.Controls("optContourOuter").Value Then Exit Sub
+    Me.Controls("cboContourQty").ListIndex = Me.Controls("cboOuterQty").ListIndex
+    Me.Controls("txtContourMm").Text = CT("txtOuter")
+    ApplyContourUiToLegacy
     UpdatePreview
 End Sub
 
@@ -1497,6 +1627,7 @@ Private Sub BuildFacade(ByVal closeAfter As Boolean)
 
     Module1.mFormFaceKind = FM()
 
+    ApplyContourUiToLegacy
     Module1.SetDrawStyleFromForm CV("cboBorder"), CV("cboOrn")
     If FM() = 3 Then
         Dim neoErr As String

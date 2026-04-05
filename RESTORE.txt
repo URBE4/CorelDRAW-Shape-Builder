@@ -20,8 +20,10 @@
   CorelDRAW_Furniture_Facades_Macro.bas  (Module1)
   UserForm1_Code.txt
 
-В заголовке формы: Shape Builder Pro v0.1.0  [2026] — SB_CODE_REV из UserForm1_Code.txt
-В Immediate: ?Module1.MEBEL_MACRO_VERSION()  -> 0.1.0 (релиз 2026, git tag v0.1.0)
+В заголовке формы: Shape Builder Pro v0.1.x  [2026-contour-bar] — SB_CODE_REV из UserForm1_Code.txt
+  Если в заголовке старая строка (например v2.2.0) — в GlobalMacros всё ещё старый код:
+  deploy_direct.ps1 или ЗАПУСК_ДЕПЛОЯ.bat, затем Файл → Сохранить GlobalMacros.
+В Immediate: ?Module1.MEBEL_MACRO_VERSION()  -> 0.1.3 после последнего деплоя
 
 ВАЖНО — почему «ничего не менялось»:
   В списке макросов был Module2.RunModernShapeBuilder — это СТАРЫЙ дубликат.
@@ -33,7 +35,8 @@
 1) Запустите CorelDRAW, откройте любой документ.
 2) Сервис / Параметры — безопасность VBA — включите доступ к объектной модели VBA (доверие к проекту).
 3) Один раз нажмите Alt+F11 (открыть редактор VBA), при необходимости закройте его.
-4) Запустите deploy_direct.ps1 из этой папки (PowerShell).
+4) Запустите deploy_direct.ps1 из этой папки (PowerShell) или двойной щелчок ЗАПУСК_ДЕПЛОЯ.bat
+   (bat вызывает именно deploy_direct.ps1 — актуальная заливка с UserForm2).
 5) В редакторе VBA: Файл — Сохранить GlobalMacros (или закройте VBA с сохранением).
 
 Если скрипт пишет VBE unavailable — повторите шаги 2–3 и снова deploy.

@@ -1,7 +1,6 @@
 ModuleCore.bas
 ModuleDraw.bas
 check_vbe.ps1
-deploy.ps1
 deploy_force_vbe.ps1
 dump_module1_top.ps1
 redeploy_clean_form.ps1
