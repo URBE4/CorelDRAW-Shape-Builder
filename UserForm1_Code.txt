@@ -14,7 +14,6 @@ Private WithEvents btnExportDxf As MSForms.CommandButton
 Private WithEvents btnSwapSheet As MSForms.CommandButton
 Private WithEvents btnFacadeTypeSave As MSForms.CommandButton
 Private WithEvents btnFacadeTypeMgr As MSForms.CommandButton
-Private WithEvents btnFacadeTypeDel As MSForms.CommandButton
 Private WithEvents cboContourQty As MSForms.ComboBox
 Private cboOuterQty As MSForms.ComboBox
 Private cboInnerQty As MSForms.ComboBox
@@ -32,9 +31,9 @@ Private mLast3DSig As String
 Private mPresetFM() As Long
 Private mPresetRows() As String
 ' Метка сборки: после deploy_direct.ps1 заголовок формы должен содержать эту строку (иначе в GMS старый код).
-Private Const SB_CODE_REV As String = "2026-no-facade-header"
+Private Const SB_CODE_REV As String = "2026-no-red-del"
 ' Вкладка «Основное» ~500px по вертикали; MultiPage ниже обрезает низ (+/−/C и список).
-Private Const MP_MAIN_HEIGHT As Long = 466
+Private Const MP_MAIN_HEIGHT As Long = 450
 Private Const PREVIEW_3D_PX As Long = 53
 Private Const REG_APP As String = "MebelShapeBuilder"
 ' Shell.Explorer.2: на части установок даёт 438 при открытии формы — тогда поставьте False
@@ -141,10 +140,7 @@ Private Sub UserForm_Initialize()
     Set btnFacadeTypeMgr = pg0.Controls.Add("Forms.CommandButton.1", "btnFacadeTypeMgr", True)
     With btnFacadeTypeMgr: .Left = p + 124: .Top = y: .Width = 120: .Height = 16: .Caption = "Типы…": .BackColor = BTN2: .ForeColor = FG: End With
     y = y + 18
-    Set btnFacadeTypeDel = pg0.Controls.Add("Forms.CommandButton.1", "btnFacadeTypeDel", True)
-    With btnFacadeTypeDel: .Left = p: .Top = y: .Width = formW: .Height = 16: .Caption = "Удалить выбранный тип": .BackColor = RGB(178, 58, 58): .ForeColor = RGB(255, 255, 255): End With
-    On Error Resume Next: btnFacadeTypeDel.Font.Size = 8: On Error GoTo 0
-    y = y + 18
+    ' Удаление типа — только в окне «Типы…» (UserForm2), без красной кнопки на «Основное».
 
     ML "lblSegN", "Сегментов", p, y, 48, 10, LBL, 0, False, 1, pg0
     Dim cbSeg As MSForms.ComboBox
@@ -1554,29 +1550,6 @@ Private Sub btnFacadeTypeMgr_Click()
     Exit Sub
 EH:
     MsgBox "Не удалось открыть окно «Типы фасадов». Выполните deploy_direct.ps1 (нужен UserForm2 в GlobalMacros)." & vbCrLf & Err.Description & " (" & CStr(Err.Number) & ")", vbExclamation, "Типы фасадов"
-End Sub
-
-Private Sub btnFacadeTypeDel_Click()
-    On Error GoTo EH
-    If mInitializing Then Exit Sub
-    If cboFType.ListCount = 0 Then
-        MsgBox "Нет сохранённых типов в базе:" & vbCrLf & Module1.FacadeTypesCsvPath() & vbCrLf & "Сначала сохраните тип кнопкой «+ сохранить тип».", vbInformation, "Удаление типа"
-        Exit Sub
-    End If
-    If cboFType.ListIndex < 0 Then
-        MsgBox "Выберите тип в списке «Тип формы», затем нажмите «Удалить выбранный тип».", vbInformation, "Удаление типа"
-        Exit Sub
-    End If
-    Dim nm As String
-    nm = Trim$(cboFType.List(cboFType.ListIndex))
-    If Len(nm) = 0 Then Exit Sub
-    If MsgBox("Удалить сохранённый тип """ & nm & """ из базы?", vbYesNo Or vbQuestion, "Удаление типа") <> vbYes Then Exit Sub
-    Module1.DeleteFacadeTypeByName nm
-    AfterFacadeTypesDeleted
-    SetStatus "Тип удалён: " & nm
-    Exit Sub
-EH:
-    MsgBox "Удалить тип: " & Err.Description, vbExclamation
 End Sub
 
 Private Sub txtFacadeSegMm_Change()
