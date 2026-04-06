@@ -59,7 +59,7 @@ Private Sub LoadList()
     If lb Is Nothing Then Exit Sub
     lb.Clear
     Dim p As String, fh As Integer, line As String
-    p = Module1.FacadeTypesCsvPath()
+    p = Module1.FacadeTypesCsvPath(0)
     If Dir(p) = "" Then Exit Sub
     fh = FreeFile
     Open p For Input As #fh

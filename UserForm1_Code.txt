@@ -31,7 +31,7 @@ Private mLast3DSig As String
 Private mPresetFM() As Long
 Private mPresetRows() As String
 ' Метка сборки: после deploy_direct.ps1 заголовок формы должен содержать эту строку (иначе в GMS старый код).
-Private Const SB_CODE_REV As String = "2026-no-red-del"
+Private Const SB_CODE_REV As String = "2026-one-facades"
 ' Вкладка «Основное» ~500px по вертикали; MultiPage ниже обрезает низ (+/−/C и список).
 Private Const MP_MAIN_HEIGHT As Long = 450
 Private Const PREVIEW_3D_PX As Long = 53
@@ -49,7 +49,7 @@ Private Sub UserForm_Initialize()
     Next sl
     On Error GoTo 0
 
-    Me.Caption = "Shape Builder Pro v" & Module1.MEBEL_MACRO_VERSION() & "  [" & SB_CODE_REV & "]"
+    Me.Caption = "Shape Builder Pro v" & Module1.MEBEL_MACRO_VERSION(0) & "  [" & SB_CODE_REV & "]"
     ' Палитра «cool slate» (слева→справа): #E5E9EC #CED4D9 #B2B9BD #969FA5 #5E6B73 #323D43
     ' Тема + геометрия: в Corel часть свойств UserForm даёт 438 — только под Resume Next
     On Error Resume Next
@@ -575,7 +575,7 @@ Private Sub RebuildFacadeTypeCombo()
     Dim csvLines() As String
     cboFType.Clear
     csvCnt = 0
-    p = Module1.FacadeTypesCsvPath()
+    p = Module1.FacadeTypesCsvPath(0)
     If Dir(p) <> "" Then
         fh = FreeFile
         Open p For Input As #fh
@@ -1015,7 +1015,7 @@ End Sub
 ' Строка «Готово» с версией и активным типом фасада (чтобы было видно: неоклассика = отдельная отрисовка)
 Private Sub RefreshReadyStatus()
     On Error Resume Next
-    SetStatus "Готово · v" & Module1.MEBEL_MACRO_VERSION() & " · SB " & SB_CODE_REV & " · " & FacadeTypeCaption()
+    SetStatus "Готово · v" & Module1.MEBEL_MACRO_VERSION(0) & " · SB " & SB_CODE_REV & " · " & FacadeTypeCaption()
 End Sub
 
 Private Sub RefreshList()
@@ -1431,7 +1431,7 @@ EH:
 End Sub
 
 Private Sub btnExportDxf_Click()
-    Module1.ExportCncDxf
+    Module1.ExportCncDxf 0
 End Sub
 
 Private Sub cboNestMode_Change()
