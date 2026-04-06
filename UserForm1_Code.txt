@@ -32,9 +32,9 @@ Private mLast3DSig As String
 Private mPresetFM() As Long
 Private mPresetRows() As String
 ' Метка сборки: после deploy_direct.ps1 заголовок формы должен содержать эту строку (иначе в GMS старый код).
-Private Const SB_CODE_REV As String = "2026-only-facades"
+Private Const SB_CODE_REV As String = "2026-no-facade-header"
 ' Вкладка «Основное» ~500px по вертикали; MultiPage ниже обрезает низ (+/−/C и список).
-Private Const MP_MAIN_HEIGHT As Long = 486
+Private Const MP_MAIN_HEIGHT As Long = 466
 Private Const PREVIEW_3D_PX As Long = 53
 Private Const REG_APP As String = "MebelShapeBuilder"
 ' Shell.Explorer.2: на части установок даёт 438 при открытии формы — тогда поставьте False
@@ -146,10 +146,6 @@ Private Sub UserForm_Initialize()
     On Error Resume Next: btnFacadeTypeDel.Font.Size = 8: On Error GoTo 0
     y = y + 18
 
-    ML "lblParams", "Параметры фасада", p, y, 140, 10, LBL, 0, False, 1, pg0
-    y = y + 10
-    ML "lblUiBuildStamp", "0.1.4 контур одной строкой — не видите? deploy из папки с .bas", p, y, formW, 10, MUTED, 0, False, 1, pg0
-    y = y + 10
     ML "lblSegN", "Сегментов", p, y, 48, 10, LBL, 0, False, 1, pg0
     Dim cbSeg As MSForms.ComboBox
     Set cbSeg = pg0.Controls.Add("Forms.ComboBox.1", "cboSegN", True)
@@ -353,7 +349,7 @@ Private Sub UserForm_Initialize()
     y = y + 13
     ML "lblExportHint", "ЧПУ: галочка → СОЗДАТЬ → DXF.", p, y, formW, 10, MUTED, 0, False, 1, pg2
     y = y + 12
-    ML "lblPriceParamsHint", "Параметры фасада — на вкладке «Основное».", p, y, formW, 10, MUTED, 0, False, 1, pg2
+    ML "lblPriceParamsHint", "Тип формы и контур — на вкладке «Основное».", p, y, formW, 10, MUTED, 0, False, 1, pg2
 
     ' Отступ от MultiPage — нижняя зона (S= / кнопки) не должна прилипать к вкладкам
     y = mp.Top + mp.Height + 14
@@ -736,8 +732,6 @@ Private Sub UpdateFacadeParamPanels()
     Me.Controls("lblContourIcoOff").Visible = Not neo
     Me.Controls("txtContourMm").Visible = Not neo
     Me.Controls("lblContourMmUnit").Visible = Not neo
-    On Error Resume Next
-    Me.Controls("lblUiBuildStamp").Visible = True
     On Error GoTo 0
 End Sub
 

@@ -20,8 +20,8 @@
   CorelDRAW_Furniture_Facades_Macro.bas  (Module1)
   UserForm1_Code.txt
 
-В заголовке формы: Shape Builder Pro v0.1.x  [2026-only-facades] — SB_CODE_REV из UserForm1_Code.txt
-  Под «Параметры фасада» должна быть серая строка «0.1.4 контур одной строкой…».
+В заголовке формы: Shape Builder Pro v0.1.x  [2026-no-facade-header] — SB_CODE_REV из UserForm1_Code.txt
+  Блок «Параметры фасада» и серая строка про deploy на «Основное» убраны.
   Если видите v2.2.0, «Пневм» и т.д. — это не код из этой папки; см. VERIFY_UI.txt
 В Immediate: ?Module1.MEBEL_MACRO_VERSION()  -> 0.1.4 после последнего деплоя
 
