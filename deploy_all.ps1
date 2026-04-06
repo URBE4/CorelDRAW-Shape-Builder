@@ -20,6 +20,7 @@ function Write-Log([string]$msg) {
 
 Set-Content -LiteralPath $logPath -Value "=== Shape Builder deploy_all.ps1 (CorelDRAW 2026) ===" -Encoding UTF8
 Write-Log "Folder: $root"
+Write-Log 'Target suite: CorelDRAW Graphics Suite 2026 (first exe path in list; fallback 2025…2021).'
 
 $corelRunning = $false
 $corelConnect = Join-Path $root 'ShapeBuilder_CorelConnect.ps1'

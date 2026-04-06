@@ -15,6 +15,7 @@
   и vba_export_last\ (экспорт из VBE: Module1.bas, UserForm1.frm + при форме может быть .frx).
 
 Порядок этапов разработки: см. WORK_ORDER.txt в этой папке.
+Основная среда: CorelDRAW Graphics Suite 2026 (см. deploy_all.ps1, ShapeBuilder_CorelConnect.ps1).
 
 Источник правды — файлы в этой папке:
   CorelDRAW_Furniture_Facades_Macro.bas  (Module1)

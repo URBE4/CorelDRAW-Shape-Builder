@@ -1,4 +1,5 @@
-# CorelDRAW Graphics Suite 2026 — основная цель; ProgID .28 / .27 (разные сборки).
+# CorelDRAW Graphics Suite 2026 — основная цель разработки и деплоя Shape Builder.
+# ProgID: CorelDRAW.Application, затем .28 / .27 (2026 часто один из них) … .21.
 # Общий список COM-суффиксов для GetActiveObject / New-Object.
 $script:ShapeBuilderCorelComVersions = @('28', '27', '26', '25', '24', '23', '22', '21')
 

@@ -6,7 +6,7 @@ echo  Shape Builder — заливка в GlobalMacros (CorelDRAW 2026)
 echo  Папка: %~dp0
 echo ========================================
 echo.
-echo 1) Запустите CorelDRAW, откройте документ.
+echo 1) Запустите CorelDRAW 2026 (желательно), откройте документ.
 echo 2) Один раз Alt+F11, закройте окно VBA.
 echo 3) Нажмите любую клавишу — пойдет deploy_all.ps1 (Corel+deploy, лог deploy_last_log.txt)
 echo.
