@@ -17,6 +17,13 @@ Public mOuterQty As Long
 Public mOuterMm As Double
 Public mInnerQty As Long
 Public mInnerMm As Double
+' Расстояния между соседними контурами (мм), снаружи внутрь; если список короче числа колец — повторяется последний шаг
+Private mOuterDelta(1 To 24) As Double
+Private mOuterDN As Long
+Private mInnerDelta(1 To 24) As Double
+Private mInnerDN As Long
+Private mUseOuterD As Boolean
+Private mUseInnerD As Boolean
 ' ЧПУ: детали на CUT, подписи на TEXT, контур листа на SHEET (экспорт DXF)
 Public mCncLayers As Boolean
 ' Guillotine: если True — справа остаток на всю высоту зоны (лучше для широких деталей у края)
@@ -42,6 +49,8 @@ Private Const NEO_L4 As Double = 12#
 Private Const NEO_PATTERN As Double = 84#
 ' Мин. остаток внутри вложенного прямоугольника неоклассики (мм); иначе кольцо не рисуем
 Private Const NEO_INSET_WALL_MIN_MM As Double = 0.25
+' Вложенные контуры (рама/филёнка, AddPanelGeometry): толщина абриса, мм при doc.Unit = cdrMillimeter
+Private Const GUIDE_OUTLINE_MM As Double = 0.1
 
 Private mPartCounter As Long
 
@@ -83,7 +92,7 @@ Private Const OFN_HIDEREADONLY As Long = &H4
 ' Версия линейки: Function (не Const) — в Corel после AddFromString Const иногда «теряется», даёт Variable not defined
 ' Обязательный Byte — не попадает в «Запустить макрос» (там только Public Sub Фасады без параметров).
 Public Function MEBEL_MACRO_VERSION(ByVal MacroListHide As Byte) As String
-    MEBEL_MACRO_VERSION = "0.1.4"
+    MEBEL_MACRO_VERSION = "0.1.5"
 End Function
 
 Private Sub RunModernShapeBuilder()
@@ -134,7 +143,61 @@ Private Sub ResetDrawStyleDefaults()
     mOuterMm = 0#
     mInnerQty = 0
     mInnerMm = 0#
+    ClearContourStepLists
 End Sub
+
+Private Sub ClearContourStepLists()
+    mOuterDN = 0
+    mInnerDN = 0
+    mUseOuterD = False
+    mUseInnerD = False
+End Sub
+
+' Задаёт шаги между контурами (мм), через «;» или «,». Пустые строки — одна величина из SetPanelGeometry (как раньше).
+Public Sub SetContourStepMmStrings(ByVal sOut As String, ByVal sIn As String)
+    ClearContourStepLists
+    mOuterDN = ParseStepListMm(sOut, mOuterDelta)
+    mInnerDN = ParseStepListMm(sIn, mInnerDelta)
+    If mOuterDN > 0 Then mUseOuterD = True
+    If mInnerDN > 0 Then mUseInnerD = True
+End Sub
+
+Private Function ParseStepListMm(ByVal s As String, ByRef arr() As Double) As Long
+    Dim parts() As String, t As String, i As Long, n As Long, v As Double
+    t = Replace$(Replace$(Trim$(s), ",", ";"), vbCrLf, ";")
+    t = Replace$(Replace$(t, vbCr, ";"), vbLf, ";")
+    parts = Split(t, ";")
+    n = 0
+    For i = 0 To UBound(parts)
+        If Len(Trim$(parts(i))) > 0 Then
+            v = Val(Trim$(parts(i)))
+            If v >= 0# Then
+                n = n + 1
+                If n <= 24 Then arr(n) = v
+            End If
+        End If
+    Next i
+    ParseStepListMm = n
+End Function
+
+Private Function MinLong(ByVal a As Long, ByVal b As Long) As Long
+    If a < b Then MinLong = a Else MinLong = b
+End Function
+
+' Массив в VBA только ByRef (ByVal arr() даёт ошибку синтаксиса)
+Private Function CumStepAt(ByRef arr() As Double, ByVal n As Long, ByVal ring As Long, ByVal uniform As Double) As Double
+    Dim t As Long, s As Double, d As Double
+    If n > 0 Then
+        s = 0#
+        For t = 1 To ring
+            d = arr(MinLong(t, n))
+            s = s + d
+        Next t
+        CumStepAt = s
+    Else
+        CumStepAt = ring * uniform
+    End If
+End Function
 
 Public Sub SetPanelGeometry( _
     ByVal ix As Double, ByVal iy As Double, _
@@ -153,6 +216,7 @@ Public Sub SetPanelGeometry( _
     If mOuterQty > 24 Then mOuterQty = 24
     If mInnerQty < 0 Then mInnerQty = 0
     If mInnerQty > 24 Then mInnerQty = 24
+    ClearContourStepLists
 End Sub
 
 Private Sub ApplyPartFill(ByVal r As Shape)
@@ -186,7 +250,7 @@ End Sub
 
 Private Sub StyleGuideShape(ByVal sh As Shape)
     On Error Resume Next
-    sh.Outline.Width = 0.2
+    sh.Outline.Width = GUIDE_OUTLINE_MM
     sh.Outline.Color.RGBAssign 120, 85, 40
     sh.Fill.ApplyNoFill
 End Sub
@@ -297,7 +361,7 @@ Private Sub DrawNeoclassic1Facade(ByVal lay As Layer, ByVal x As Double, ByVal y
         If Not g Is Nothing Then
             StyleGuideShape g
             g.Outline.Color.RGBAssign 55, 85, 140
-            g.Outline.Width = 0.22
+            g.Outline.Width = GUIDE_OUTLINE_MM
         End If
     Next k
 
@@ -360,9 +424,13 @@ Private Sub AddPanelGeometry(ByVal lay As Layer, ByVal x As Double, ByVal yTop A
     Dim off As Double, inn As Double
     Dim g As Shape
 
-    If mOuterQty > 0 And mOuterMm > 0.05 Then
+    If mOuterQty > 0 And (mOuterMm > 0.05 Or mUseOuterD) Then
         For k = 1 To mOuterQty
-            off = k * mOuterMm
+            If mUseOuterD Then
+                off = CumStepAt(mOuterDelta, mOuterDN, k, mOuterMm)
+            Else
+                off = k * mOuterMm
+            End If
             If w <= off * 2.05 Or h <= off * 2.05 Then Exit For
             Set g = lay.CreateRectangle(x + off, yTop - off, x + w - off, yTop - h + off)
             StyleGuideShape g
@@ -375,9 +443,13 @@ Private Sub AddPanelGeometry(ByVal lay As Layer, ByVal x As Double, ByVal yTop A
             StyleGuideShape g
             g.Outline.Color.RGBAssign 55, 85, 140
 
-            If mInnerQty > 0 And mInnerMm > 0.05 Then
+            If mInnerQty > 0 And (mInnerMm > 0.05 Or mUseInnerD) Then
                 For j = 1 To mInnerQty
-                    inn = j * mInnerMm
+                    If mUseInnerD Then
+                        inn = CumStepAt(mInnerDelta, mInnerDN, j, mInnerMm)
+                    Else
+                        inn = j * mInnerMm
+                    End If
                     If w <= (ix + inn) * 2.05 Or h <= (iy + inn) * 2.05 Then Exit For
                     Set g = lay.CreateRectangle(x + ix + inn, yTop - iy - inn, x + w - ix - inn, yTop - h + iy + inn)
                     StyleGuideShape g
@@ -1278,7 +1350,9 @@ Public Sub DistributeOnSheet( _
     ByVal outerQty As Long, ByVal outerMm As Double, _
     ByVal innerQty As Long, ByVal innerMm As Double, _
     ByVal noHandle As Boolean, ByVal fv As Long, _
-    Optional ByVal useCncLayers As Boolean = False)
+    Optional ByVal useCncLayers As Boolean = False, _
+    Optional ByVal contourOuterSteps As String = "", _
+    Optional ByVal contourInnerSteps As String = "")
 
     Dim saveCnc As Boolean
     saveCnc = mCncLayers
@@ -1286,6 +1360,7 @@ Public Sub DistributeOnSheet( _
 
     SetDrawStyleFromForm borderVal, ornVal
     SetPanelGeometry insetX, insetY, arcTop, arcSide, outerQty, outerMm, innerQty, innerMm
+    SetContourStepMmStrings contourOuterSteps, contourInnerSteps
     RunPlacement 0, sheetW, sheetH, gap, fc, facW, facH, fq, False, False, False, ""
 
     mCncLayers = saveCnc
@@ -1391,7 +1466,7 @@ Public Sub DeleteFacadeTypeByName(ByVal nm As String)
 End Sub
 
 Public Function FacadeTypesCsvHeaderLine(ByVal MacroListHide As Byte) As String
-    FacadeTypesCsvHeaderLine = "Name;Kind;InsetX;InsetY;ArcTop;ArcSide;OuterQty;OuterMm;InnerQty;InnerMm;NeoSegIdx;NeoSegMm;BorderIdx;OrnIdx"
+    FacadeTypesCsvHeaderLine = "Name;Kind;InsetX;InsetY;ArcTop;ArcSide;OuterQty;OuterMm;InnerQty;InnerMm;NeoSegIdx;NeoSegMm;BorderIdx;OrnIdx;OuterSteps;InnerSteps"
 End Function
 
 Public Sub UpsertFacadeTypeRow(ByVal csvLine As String)

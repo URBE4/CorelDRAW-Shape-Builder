@@ -68,6 +68,33 @@ try {
     }
     if (-not $proj) { throw 'GlobalMacros project not found in VBE' }
 
+    $mbData = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'MebelShapeBuilder'
+    try {
+        if (-not (Test-Path -LiteralPath $mbData)) { New-Item -ItemType Directory -Path $mbData -Force | Out-Null }
+        $iconPng = Join-Path $basePath 'assets\contour_icon.png'
+        if (Test-Path -LiteralPath $iconPng) {
+            Copy-Item -LiteralPath $iconPng -Destination (Join-Path $mbData 'contour_icon.png') -Force
+            Write-Host "contour_icon.png -> $mbData"
+        }
+        $iconBmp = Join-Path $basePath 'assets\contour_icon.bmp'
+        if (Test-Path -LiteralPath $iconBmp) {
+            Copy-Item -LiteralPath $iconBmp -Destination (Join-Path $mbData 'contour_icon.bmp') -Force
+            Write-Host "contour_icon.bmp -> $mbData"
+        }
+        $neoPng = Join-Path $basePath 'assets\neo_facade_preview.png'
+        if (Test-Path -LiteralPath $neoPng) {
+            Copy-Item -LiteralPath $neoPng -Destination (Join-Path $mbData 'neo_facade_preview.png') -Force
+            Write-Host "neo_facade_preview.png -> $mbData"
+        }
+        $neoBmp = Join-Path $basePath 'assets\neo_facade_preview.bmp'
+        if (Test-Path -LiteralPath $neoBmp) {
+            Copy-Item -LiteralPath $neoBmp -Destination (Join-Path $mbData 'neo_facade_preview.bmp') -Force
+            Write-Host "neo_facade_preview.bmp -> $mbData"
+        }
+    } catch {
+        Write-Host ('contour_icon copy warning: ' + $_.Exception.Message)
+    }
+
     function Sync-StdModule([object]$project, [string]$name, [string]$fileName) {
         $m = $null
         foreach ($c in $project.VBComponents) { if ($c.Name -eq $name) { $m = $c; break } }

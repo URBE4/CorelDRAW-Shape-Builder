@@ -4,12 +4,12 @@
 Скрипты deploy_all.ps1 / deploy_direct.ps1 рассчитаны на 2026; при установке в нестандартную папку — SHAPE_CORELDRW_EXE или -CorelExe.
 
 1. Стабильность и обновление
-   - Актуальный релиз: 0.1.4 (2026), git tag v0.1.4; см. RELEASE_0_1_4_2026.txt.
+   - Актуальный релиз: 0.1.5 (2026), git tag v0.1.5; см. RELEASE_0_1_5_2026.txt.
    - Источник правды: .bas + UserForm1_Code.txt в папке проекта.
    - deploy_direct.ps1 → затем ОБЯЗАТЕЛЬНО VBA: Сохранить GlobalMacros (COM Save в Corel часто недоступен).
    - Копии после deploy: vba_backup\, vba_export_last\ — см. RESTORE.txt.
    - Запуск: только Module1.Фасады (Module2 удаляется скриптом; прочие входы — Private).
-   - Проверка версии: заголовок формы v… [2026-one-facades] или Immediate: ?Module1.MEBEL_MACRO_VERSION(0)
+   - Проверка версии: заголовок формы v… [2026-layout-LR] или Immediate: ?Module1.MEBEL_MACRO_VERSION(0)
 
 2. Раскрой (Module1)
    - Алгоритмы: nesting / Guillotine / строки.

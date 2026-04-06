@@ -1,5 +1,5 @@
 ================================================================================
-  Shape Builder Pro — кратко для оператора (релиз 0.1.0, год 2026)
+  Shape Builder Pro — кратко для оператора (релиз 0.1.5, год 2026)
 ================================================================================
 
 0) 3D ПРЕВЬЮ
@@ -37,7 +37,7 @@
   - В Corel: Сервис — Макросы — Запустить — GlobalMacros — один пункт запуска: **Module1.Фасады** (остальные процедуры Module1 не выводятся в список).
   - Исходники: CorelDRAW_Furniture_Facades_Macro.bas, UserForm1_Code.txt.
   - Заливка: deploy_direct.ps1 + ShapeBuilder_CorelConnect.ps1 (под **CorelDRAW 2026**; COM .28/.27 и ниже; см. deploy_all.ps1).
-  - Релиз 0.1.4: RELEASE_0_1_4_2026.txt, git tag v0.1.4; заливка: deploy_all.ps1 (лог deploy_last_log.txt).
+  - Релиз 0.1.5: RELEASE_0_1_5_2026.txt, git tag v0.1.5; заливка: deploy_all.ps1 (лог deploy_last_log.txt).
   - Старые снимки: MACRO_2_0_BASELINE.txt, MACRO_2_1_BASELINE.txt, MACRO_2_2_BASELINE.txt.
 
 ================================================================================
