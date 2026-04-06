@@ -81,11 +81,12 @@ Private Const OFN_OVERWRITEPROMPT As Long = &H2
 Private Const OFN_HIDEREADONLY As Long = &H4
 
 ' Версия линейки: Function (не Const) — в Corel после AddFromString Const иногда «теряется», даёт Variable not defined
-Public Function MEBEL_MACRO_VERSION() As String
+' Optional — чтобы не дублировать запись в «Запустить макрос» (только Фасады — публичный вход).
+Public Function MEBEL_MACRO_VERSION(Optional ByVal MacroListHide As Byte = 0) As String
     MEBEL_MACRO_VERSION = "0.1.4"
 End Function
 
-Public Sub RunModernShapeBuilder()
+Private Sub RunModernShapeBuilder()
     On Error GoTo EH
     UserForm1.Show vbModal
     Exit Sub
@@ -93,33 +94,19 @@ EH:
     MsgBox "Shape Builder: " & Err.Description & " (" & CStr(Err.Number) & ")", vbCritical, "Shape Builder"
 End Sub
 
-Public Sub RunWoodenShapeBuilder()
-    RunModernShapeBuilder
-End Sub
-
-Public Sub RunArtFacadePanel()
-    RunModernShapeBuilder
-End Sub
-
-' Старый ярлык в GMS (RunWardenShapeBuilder) — тот же запуск, что RunModernShapeBuilder
-Public Sub RunWardenShapeBuilder()
-    RunModernShapeBuilder
-End Sub
-
-' Главное имя в списке макросов Corel (Сервис — Макросы — Запустить): GlobalMacros → Module1.Фасады
+' Единственный пункт в списке «Сервис — Макросы — Запустить» для GlobalMacros (остальные входы — Private).
 Public Sub Фасады()
     RunModernShapeBuilder
 End Sub
 
-' П.1 порядка работ: проверка версии без открытия формы (Сервис — Макросы — Запустить)
-Public Sub ShapeBuilderAbout()
+Private Sub ShapeBuilderAbout()
     MsgBox "Shape Builder Pro" & vbCrLf & _
            "Версия линейки: " & MEBEL_MACRO_VERSION() & vbCrLf & vbCrLf & _
            "Если в заголовке формы старая версия (например v2.2.0) — заливка не применилась." & vbCrLf & _
            "Запустите deploy_direct.ps1 из папки проекта (или ЗАПУСК_ДЕПЛОЯ.bat), затем в VBA: Сохранить GlobalMacros." & vbCrLf & vbCrLf & _
            "Типы фасадов — в CSV (кнопки «+ сохранить тип», «Удалить выбранный тип», «Типы…»)." & vbCrLf & _
            "Неоклассика: превью — сечение шпунта (мм), поле сегментов на «Основное»." & vbCrLf & vbCrLf & _
-           "Основной запуск: Module1.Фасады (или RunModernShapeBuilder).", _
+           "Запуск: только макрос «Фасады» (Module1.Фасады).", _
            vbInformation, "Shape Builder"
 End Sub
 
@@ -136,7 +123,7 @@ Public Sub SetDrawStyleFromForm(ByVal borderTxt As String, ByVal ornTxt As Strin
     If InStr(1, o, "класс", vbTextCompare) > 0 Then mOrnMode = 2
 End Sub
 
-Public Sub ResetDrawStyleDefaults()
+Private Sub ResetDrawStyleDefaults()
     mOutlineStyle = 1
     mOrnMode = 0
     mInsetX = 0#
@@ -1210,7 +1197,8 @@ Public Sub RunPlacement(ByVal nestMode As Long, _
     End If
 End Sub
 
-Public Sub ExportCncDxf()
+' Optional — вызывается из формы; в списке «Запустить макрос» не показывать как отдельный пункт.
+Public Sub ExportCncDxf(Optional ByVal MacroListHide As Byte = 0)
     Dim p As String
     Dim doc As Document
     On Error GoTo EH
@@ -1361,11 +1349,11 @@ Private Function ShowFileDialogAPI_InputBox(ByVal isSave As Boolean, ByVal defDi
 End Function
 
 ' База пользовательских типов фасадов (параметры на вкладке «Цена»)
-Public Function FacadeTypesCsvPath() As String
+Public Function FacadeTypesCsvPath(Optional ByVal MacroListHide As Byte = 0) As String
     FacadeTypesCsvPath = Environ("APPDATA") & "\MebelShapeBuilder\facade_types.csv"
 End Function
 
-Public Sub EnsureFacadeTypesAppFolder()
+Private Sub EnsureFacadeTypesAppFolder()
     On Error Resume Next
     MkDir Environ("APPDATA") & "\MebelShapeBuilder"
 End Sub
@@ -1402,7 +1390,7 @@ Public Sub DeleteFacadeTypeByName(ByVal nm As String)
     Close #fh
 End Sub
 
-Public Function FacadeTypesCsvHeaderLine() As String
+Public Function FacadeTypesCsvHeaderLine(Optional ByVal MacroListHide As Byte = 0) As String
     FacadeTypesCsvHeaderLine = "Name;Kind;InsetX;InsetY;ArcTop;ArcSide;OuterQty;OuterMm;InnerQty;InnerMm;NeoSegIdx;NeoSegMm;BorderIdx;OrnIdx"
 End Function
 

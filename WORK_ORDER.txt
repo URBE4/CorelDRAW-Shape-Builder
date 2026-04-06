@@ -6,8 +6,8 @@
    - Источник правды: .bas + UserForm1_Code.txt в папке проекта.
    - deploy_direct.ps1 → затем ОБЯЗАТЕЛЬНО VBA: Сохранить GlobalMacros (COM Save в Corel часто недоступен).
    - Копии после deploy: vba_backup\, vba_export_last\ — см. RESTORE.txt.
-   - Запуск: Module1.Фасады (или RunModernShapeBuilder; Module2 удаляется скриптом).
-   - Проверка без формы: Module1.ShapeBuilderAbout
+   - Запуск: только Module1.Фасады (Module2 удаляется скриптом; прочие входы — Private).
+   - Проверка версии: заголовок формы v… [2026-only-facades] или Immediate: ?Module1.MEBEL_MACRO_VERSION()
 
 2. Раскрой (Module1)
    - Алгоритмы: nesting / Guillotine / строки.

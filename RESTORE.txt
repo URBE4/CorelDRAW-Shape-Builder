@@ -20,7 +20,7 @@
   CorelDRAW_Furniture_Facades_Macro.bas  (Module1)
   UserForm1_Code.txt
 
-В заголовке формы: Shape Builder Pro v0.1.x  [2026-no-bv-arcs] — SB_CODE_REV из UserForm1_Code.txt
+В заголовке формы: Shape Builder Pro v0.1.x  [2026-only-facades] — SB_CODE_REV из UserForm1_Code.txt
   Под «Параметры фасада» должна быть серая строка «0.1.4 контур одной строкой…».
   Если видите v2.2.0, «Пневм» и т.д. — это не код из этой папки; см. VERIFY_UI.txt
 В Immediate: ?Module1.MEBEL_MACRO_VERSION()  -> 0.1.4 после последнего деплоя
@@ -29,7 +29,7 @@
   В списке макросов был Module2.RunModernShapeBuilder — это СТАРЫЙ дубликат.
   Запускали его — открывалась старая форма. Актуальный код только в Module1.
   deploy_direct.ps1 теперь удаляет Module2. Запускайте: Module1.Фасады
-  (или RunModernShapeBuilder / RunWardenShapeBuilder в Module1 — тот же вход).
+  (в Module1 публичный вход только Фасады; остальное — Private).
 
 Шаги:
 1) Запустите CorelDRAW, откройте любой документ.
@@ -43,12 +43,12 @@
 
 Пустой список в «Сервис — Макросы — Запустить», проект GlobalMacros:
   Значит в GlobalMacros нет кода (или не сохранён .gms). Макросы появятся только после
-  заливки Module1 (там Public Sub Фасады, RunModernShapeBuilder и др.).
+  заливки Module1 (публичный Sub Фасады; остальное — Private).
   1) Закройте окно «Запустить макрос». 2) Откройте папку проекта с deploy_direct.ps1.
   3) Запустите deploy_direct.ps1 в PowerShell (ПКМ — «Выполнить с помощью PowerShell»
      или: cd в папку, затем .\deploy_direct.ps1). Должно быть: Module1 OK, UserForm1 OK,
      DIRECT DEPLOY OK. 4) Alt+F11 → Файл — Сохранить GlobalMacros. 5) Снова Сервис —
-     Макросы — в списке выберите Module1.Фасады (или ShapeBuilderAbout).
+     Макросы — в списке выберите Module1.Фасады.
   Если deploy пишет ошибку — пришлите текст из консоли. Скрипт сначала цепляется к
   уже открытому Corel через CorelDRAW.Application (без номера версии), затем к .28…21 (2026 — ShapeBuilder_CorelConnect.ps1).
 
