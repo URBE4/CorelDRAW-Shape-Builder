@@ -92,7 +92,7 @@ Private Const OFN_HIDEREADONLY As Long = &H4
 ' Версия линейки: Function (не Const) — в Corel после AddFromString Const иногда «теряется», даёт Variable not defined
 ' Обязательный Byte — не попадает в «Запустить макрос» (там только Public Sub Фасады без параметров).
 Public Function MEBEL_MACRO_VERSION(ByVal MacroListHide As Byte) As String
-    MEBEL_MACRO_VERSION = "0.1.5"
+    MEBEL_MACRO_VERSION = "0.1.6"
 End Function
 
 Private Sub RunModernShapeBuilder()

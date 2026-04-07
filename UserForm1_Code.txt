@@ -31,18 +31,22 @@ Private mLast3DSig As String
 Private mPresetFM() As Long
 Private mPresetRows() As String
 ' Метка сборки: после deploy_direct.ps1 заголовок формы должен содержать эту строку (иначе в GMS старый код).
-Private Const SB_CODE_REV As String = "2026-layout-LR"
+Private Const SB_CODE_REV As String = "2026-layout-wide"
 ' Слева — список фасадов; справа сверху — превью 3D, снизу — вкладки (MultiPage).
 ' Высота превью — PREVIEW_3D_PX.
 ' Резерв под нижнюю зону (S=, СОЗДАТЬ, кнопки, статус) — высота MultiPage считается от Me.Height.
-Private Const MP_FOOTER_RESERVE As Long = 218
-Private Const MP_MAIN_MIN_H As Long = 260
+' Нижний резерв: S=, СОЗДАТЬ, кнопки, статус (не занижать — иначе футер обрезается).
+Private Const MP_FOOTER_RESERVE As Long = 122
+' Минимум высоты MultiPage: вкладка «Основное» (контур 24 поля ~3 ряда) иначе обрезается.
+Private Const MP_MAIN_MIN_H As Long = 300
 ' Высота полосы WebBrowser-превью (справа сверху).
-Private Const PREVIEW_3D_PX As Long = 232
+Private Const PREVIEW_3D_PX As Long = 100
 ' Макс. ширина CSS-блока «двери» в HTML (под ширину превью справа).
-Private Const PREVIEW_CSS_MAX_W As Long = 284
-' Левая колонка: список фасадов («кухня» / заказ).
-Private Const LIST_COL_W As Long = 208
+Private Const PREVIEW_CSS_MAX_W As Long = 340
+' Левая колонка: список фасадов (уже = больше места справа под вкладки MultiPage).
+Private Const LIST_COL_W As Long = 196
+' Полосы заголовков секций (как в макете v2.1): тёмно-синий фон, белый текст.
+Private Const SECTION_HDR_H As Long = 10
 Private Const REG_APP As String = "MebelShapeBuilder"
 ' Shell.Explorer.2: на части установок даёт 438 при открытии формы — тогда поставьте False
 Private Const USE_3D_WEB_PREVIEW As Boolean = True
@@ -66,8 +70,8 @@ Private Sub UserForm_Initialize()
     Me.BackColor = RGB(229, 233, 236)
     Me.BorderStyle = 1
     Me.StartUpPosition = 2
-    Me.Width = 520
-    Me.Height = 838
+    Me.Width = 600
+    Me.Height = 652
     Me.Font.Name = "Segoe UI"
     Me.Font.Size = 8
     On Error GoTo 0
@@ -90,11 +94,15 @@ Private Sub UserForm_Initialize()
     AC = C6
     BTN2 = C5
     MUTED = C4
+    Dim HDR_BG As Long, HDR_FG As Long
+    HDR_BG = RGB(15, 52, 96)
+    HDR_FG = RGB(255, 255, 255)
 
     Dim p As Long, formW As Long, hw As Long, rx As Long, y As Long
     Dim rp As Long, rightW As Long, wAll As Long, yR As Long, gutter As Long, yl As Long
     Dim mpTop As Long, mpH As Long, listInset As Long, listInnerW As Long, yRow As Long
     Dim yBtns As Long, yList As Long, listH As Long
+    Dim ySec0 As Long, mpTopAfterPrev As Long
     Dim colAdd As Long, colDel As Long, colClr As Long, capW As Long, g As Long, x0 As Long
     Dim wbAx As Object
     Dim qj As Long
@@ -114,16 +122,24 @@ Private Sub UserForm_Initialize()
     rx = p + hw + 4
     y = 2
 
-    ML "lblPreview", "", p, y, wAll, 28, FGD, DK, True, 2
+    ML "lblPreview", "", p, y, wAll, 12, FGD, DK, True, 2
     On Error Resume Next
     Me.Controls("lblPreview").WordWrap = True
     On Error GoTo 0
-    yRow = y + 30
-    ML "lbl3DPrev", "Неоклассика: сечение верхнего шпунта (мм), поле сегментов ниже", rp + p, yRow, rightW, 28, LBL, 0, False, 1
+    ySec0 = y + 14
+    ML "lblHdrKitchen", "КУХНЯ", p, ySec0, LIST_COL_W, SECTION_HDR_H, HDR_FG, HDR_BG, True, 2
+    ML "lblHdrFacade", "ФАСАД", rp, ySec0, tabW, SECTION_HDR_H, HDR_FG, HDR_BG, True, 2
     On Error Resume Next
-    Me.Controls("lbl3DPrev").WordWrap = True
+    Me.Controls("lblHdrKitchen").Font.Bold = True
+    Me.Controls("lblHdrFacade").Font.Bold = True
     On Error GoTo 0
-    yl = yRow + 29
+    yRow = ySec0 + SECTION_HDR_H + 1
+    ML "lbl3DPrev", "Превью фасада · шпунт/сегменты — «Основное»", rp + p, yRow, rightW, 12, LBL, 0, False, 1
+    On Error Resume Next
+    Me.Controls("lbl3DPrev").WordWrap = False
+    Me.Controls("lbl3DPrev").Font.Size = 7
+    On Error GoTo 0
+    yl = yRow + 13
     On Error Resume Next
     If USE_3D_WEB_PREVIEW Then
         Set wbAx = Me.Controls.Add("Shell.Explorer.2", "wbFacade3D", True)
@@ -136,9 +152,18 @@ Private Sub UserForm_Initialize()
     End If
     On Error GoTo 0
 
-    mpTop = yl + PREVIEW_3D_PX + 4
+    mpTopAfterPrev = yl + PREVIEW_3D_PX + 1
+    ML "lblHdrSettings", "Основные настройки", rp, mpTopAfterPrev, tabW, SECTION_HDR_H, HDR_FG, HDR_BG, True, 2
+    On Error Resume Next
+    Me.Controls("lblHdrSettings").Font.Bold = True
+    On Error GoTo 0
+    mpTop = mpTopAfterPrev + SECTION_HDR_H + 1
     mpH = Me.Height - mpTop - MP_FOOTER_RESERVE
     If mpH < MP_MAIN_MIN_H Then mpH = MP_MAIN_MIN_H
+    ' Если мин. высота вкладок не влезает — подрезаем (редко при слишком низкой Me.Height).
+    If mpTop + mpH > Me.Height - MP_FOOTER_RESERVE Then
+        mpH = Me.Height - mpTop - MP_FOOTER_RESERVE
+    End If
 
     On Error Resume Next
     Set mp = Me.Controls.Add("Forms.MultiPage.1", "mpMain", True)
@@ -161,7 +186,7 @@ Private Sub UserForm_Initialize()
 
     listInset = 4
     listInnerW = LIST_COL_W - 2 * listInset
-    ML "lblFacList", "Фасады:", p + listInset, yRow, listInnerW, 10, LBL, 0, False, 1
+    ML "lblFacList", "Список:", p + listInset, yRow, listInnerW, 10, LBL, 0, False, 1
     On Error Resume Next
     Me.Controls("lblFacList").WordWrap = False
     On Error GoTo 0
@@ -170,16 +195,16 @@ Private Sub UserForm_Initialize()
     colClr = RGB(76, 88, 56)
     capW = 28: g = 5
     x0 = p + listInset + listInnerW - 3 * capW - 2 * g
-    yBtns = yRow + 11
+    yBtns = yRow + 6
     Set btnAdd = Me.Controls.Add("Forms.CommandButton.1", "btnAdd", True)
-    With btnAdd: .Left = x0: .Top = yBtns: .Width = capW: .Height = 18: .BackColor = colAdd: .ForeColor = RGB(255, 255, 255): .Caption = "+": End With
+    With btnAdd: .Left = x0: .Top = yBtns: .Width = capW: .Height = 14: .BackColor = colAdd: .ForeColor = RGB(255, 255, 255): .Caption = "+": End With
     Set btnDel = Me.Controls.Add("Forms.CommandButton.1", "btnDel", True)
-    With btnDel: .Left = x0 + capW + g: .Top = yBtns: .Width = capW: .Height = 18: .BackColor = colDel: .ForeColor = RGB(255, 255, 255): .Caption = "-": End With
+    With btnDel: .Left = x0 + capW + g: .Top = yBtns: .Width = capW: .Height = 14: .BackColor = colDel: .ForeColor = RGB(255, 255, 255): .Caption = "-": End With
     Set btnClr = Me.Controls.Add("Forms.CommandButton.1", "btnClr", True)
-    With btnClr: .Left = x0 + 2 * (capW + g): .Top = yBtns: .Width = capW: .Height = 18: .BackColor = colClr: .ForeColor = RGB(245, 248, 240): .Caption = "C": End With
-    yList = yBtns + 21
-    listH = mpTop + mpH - yList - 6
-    If listH < 120 Then listH = 120
+    With btnClr: .Left = x0 + 2 * (capW + g): .Top = yBtns: .Width = capW: .Height = 14: .BackColor = colClr: .ForeColor = RGB(245, 248, 240): .Caption = "C": End With
+    yList = yBtns + 12
+    listH = mpTop + mpH - yList - 4
+    If listH < 40 Then listH = 40
     Set lb = Me.Controls.Add("Forms.ListBox.1", "lstFacades", True)
     If Not lb Is Nothing Then
         lb.Left = p + listInset
@@ -188,7 +213,10 @@ Private Sub UserForm_Initialize()
         lb.Height = listH
         lb.BackColor = DK: lb.ForeColor = FGD
         lb.SpecialEffect = 0: lb.BorderStyle = 1
+        On Error Resume Next
         lb.Font.Size = 8
+        lb.IntegralHeight = False
+        On Error GoTo 0
         lb.Visible = True
     End If
     On Error Resume Next
@@ -403,23 +431,22 @@ Private Sub UserForm_Initialize()
     ML "lblPriceParamsHint", "Тип формы и контур — на вкладке «Основное».", p, y, formW, 10, MUTED, 0, False, 1, pg2
 
     ' Отступ от MultiPage — нижняя зона (S= / кнопки) не должна прилипать к вкладкам
-    y = mp.Top + mp.Height + 14
-    ML "lblArea", "S=0.00 м²  Исп. 0%", p, y, barW, 12, CK, 0, False, 3
-    y = y + 16
-    ML "lblStat", "", p, y, barW, 12, CK, 0, False, 1
-    y = y + 16
-    ' Зазор перед «СОЗДАТЬ» — от списка/статистики
-    y = y + 12
+    y = mp.Top + mp.Height + 4
+    ML "lblArea", "S=0.00 м²  Исп. 0%", p, y, barW, 9, CK, 0, False, 3
+    y = y + 9
+    ML "lblStat", "", p, y, barW, 9, CK, 0, False, 1
+    y = y + 9
+    y = y + 4
     Set btnCreate = Me.Controls.Add("Forms.CommandButton.1", "btnCreate", True)
-    With btnCreate: .Left = p: .Top = y: .Width = barW: .Height = 22: .BackColor = AC: .ForeColor = FG: .Caption = "СОЗДАТЬ": End With
-    On Error Resume Next: btnCreate.Font.Size = 9: On Error GoTo 0
-    y = y + 28
+    With btnCreate: .Left = p: .Top = y: .Width = barW: .Height = 18: .BackColor = AC: .ForeColor = FG: .Caption = "СОЗДАТЬ": End With
+    On Error Resume Next: btnCreate.Font.Size = 8: On Error GoTo 0
+    y = y + 18
     Set btnClose = Me.Controls.Add("Forms.CommandButton.1", "btnClose", True)
-    With btnClose: .Left = p: .Top = y: .Width = hw: .Height = 18: .BackColor = BTN2: .ForeColor = FG: .Caption = "ЗАКРЫТЬ": End With
+    With btnClose: .Left = p: .Top = y: .Width = hw: .Height = 14: .BackColor = BTN2: .ForeColor = FG: .Caption = "ЗАКРЫТЬ": End With
     Set btnCrCl = Me.Controls.Add("Forms.CommandButton.1", "btnCrCl", True)
-    With btnCrCl: .Left = rx: .Top = y: .Width = hw: .Height = 18: .BackColor = BTN2: .ForeColor = FG: .Caption = "СОЗД.·ЗАКР.": End With
-    y = y + 24
-    ML "lblStatus", "Готово", p, y, barW, 11, CK
+    With btnCrCl: .Left = rx: .Top = y: .Width = hw: .Height = 14: .BackColor = BTN2: .ForeColor = FG: .Caption = "СОЗД.·ЗАКР.": End With
+    y = y + 16
+    ML "lblStatus", "Готово", p, y, barW, 9, CK
 
     On Error Resume Next
     Me.Controls("txtFQ").TextAlign = 2
@@ -1289,7 +1316,7 @@ Private Sub RefreshList()
         lb.AddItem CStr(i + 1) & ".  H " & CStr(CLng(mFH(i))) & " x W " & CStr(CLng(mFW(i))) & "  |  " & CStr(mFQ(i)) & " шт"
     Next i
     If lb.ListCount > 0 Then lb.ListIndex = lb.ListCount - 1
-    Me.Controls("lblFacList").Caption = "Фасады (" & CStr(mFC) & " поз.):"
+    Me.Controls("lblFacList").Caption = "Кухня · позиций: " & CStr(mFC)
     Me.Repaint
     Exit Sub
 RL_Err:
